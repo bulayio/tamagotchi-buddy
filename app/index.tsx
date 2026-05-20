@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,37 +8,64 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
-import { SECRET_COMMAND, HINTS } from '../src/constants/config';
+} from "react-native";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { SECRET_COMMAND, HINTS } from "../src/constants/config";
 
-const UNLOCK_KEY = '@tamagotchi_state';
+const UNLOCK_KEY = "@tamagotchi_state";
+
+const BLUE = "#3B82F6";
+const GREY_TEXT = "#6B7280";
+const BORDER = "#E5E7EB";
+
+const POST_TITLE = "내 힌트는 앞에 B라고 하는데";
+const POST_BODY =
+  "플오에서 받은 힌트가 맨 앞글자 B만 적혀 있어서 미치겠음 ㅋㅋ 댓글 창에 영단어로 추측해서 넣어보래서 그냥 때려 넣어봤는데 신기능 연다는 소문 ㄹㅇ냐?? 대박이네";
+
+const COMMENTS = [
+  {
+    id: "1",
+    level: "크리에이터 Lv.74",
+    user: "NOD3",
+    body: '혹시 "buddy" 아냐',
+    avatarBg: "#F472B6",
+    initial: "N",
+  },
+  {
+    id: "2",
+    level: "플레이오고인물 Lv.12",
+    user: "달빛라떼",
+    body: "저도 같은 힌트 봤어요 ㅋㅋ 다 같이 맞춰봐요.",
+    avatarBg: "#34D399",
+    initial: "달",
+  },
+];
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const [input, setInput] = useState('');
-  const [hint, setHint] = useState('');
+  const [input, setInput] = useState("");
+  const [hint, setHint] = useState("");
   const [showError, setShowError] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
 
   useEffect(() => {
-    // Check if already unlocked
     AsyncStorage.getItem(UNLOCK_KEY).then((raw) => {
       if (raw) {
         const data = JSON.parse(raw);
         if (data.isUnlocked) setIsUnlocked(true);
       }
     });
-    // Show a random hint
     setHint(HINTS[Math.floor(Math.random() * HINTS.length)]);
   }, []);
 
   const handleSubmit = () => {
     if (input.trim().toUpperCase() === SECRET_COMMAND) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push('/tamagotchi');
+      router.push("/tamagotchi");
     } else {
       setShowError(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -47,228 +74,356 @@ export default function CommunityScreen() {
   };
 
   const handleGoToTamagotchi = () => {
-    router.push('/tamagotchi');
+    router.push("/tamagotchi");
   };
 
   const handleGoToDnaDemo = () => {
-    router.push('/dna-demo');
+    router.push("/dna-demo");
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>커뮤니티</Text>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.pageTitle}>플레이오 커뮤니티</Text>
 
-        {/* Hint Banner */}
-        <View style={styles.hintBanner}>
-          <Text style={styles.hintIcon}>✨</Text>
-          <View style={styles.hintContent}>
-            <Text style={styles.hintTitle}>특별한 명령어의 힌트를 발견했어요!</Text>
-            <Text style={styles.hintText}>{hint}</Text>
-          </View>
-        </View>
-
-        {/* Quick access if already unlocked */}
-        {isUnlocked && (
-          <TouchableOpacity style={styles.quickAccess} onPress={handleGoToTamagotchi}>
-            <Text style={styles.quickAccessText}>🐣 내 다마고치 보러가기</Text>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Text style={styles.category}>자유 &gt;</Text>
           </TouchableOpacity>
-        )}
 
-        <TouchableOpacity style={styles.demoLink} onPress={handleGoToDnaDemo}>
-          <Text style={styles.demoLinkText}>🧬 펫 DNA 생성기 데모</Text>
-        </TouchableOpacity>
+          <Text style={styles.postTitle}>{POST_TITLE}</Text>
 
-        {/* Command Input */}
-        <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>명령어 입력</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={input}
-              onChangeText={setInput}
-              placeholder="명령어를 입력하세요..."
-              placeholderTextColor="#666"
-              autoCapitalize="characters"
-              returnKeyType="send"
-              onSubmitEditing={handleSubmit}
-            />
-            <TouchableOpacity style={styles.sendBtn} onPress={handleSubmit}>
-              <Text style={styles.sendBtnText}>전송</Text>
+          <Text style={styles.meta}>
+            2026.05.08 PM 03:14{"  "}|{"  "}조회 수: 146
+          </Text>
+
+          {/* 작성자 */}
+          <View style={styles.authorRow}>
+            <View style={styles.authorAvatar}>
+              <Text style={styles.authorAvatarEmoji}>🐱</Text>
+            </View>
+            <View style={styles.authorTextBlock}>
+              <Text style={styles.authorLevel}>플레이오고인물 Lv.23</Text>
+              <Text style={styles.authorName}>잭냥이.</Text>
+            </View>
+            <TouchableOpacity style={styles.moreBtn} hitSlop={12}>
+              <Text style={styles.moreDots}>⋮</Text>
             </TouchableOpacity>
           </View>
-          {showError && (
-            <Text style={styles.errorText}>잘못된 명령어입니다. 힌트를 모아보세요!</Text>
-          )}
-        </View>
 
-        {/* Fake community feed */}
-        <View style={styles.feed}>
-          <Text style={styles.feedTitle}>커뮤니티 피드</Text>
-          {[
-            { user: '유저A', msg: '혹시 특별한 명령어 힌트 받으신 분? 저는 첫 글자를 알아냈어요!', time: '5분 전' },
-            { user: '유저B', msg: '저도요! 세 번째 글자 힌트 받았는데 같이 맞춰볼까요?', time: '3분 전' },
-            { user: '유저C', msg: '다섯 글자인 것 같아요. 마지막 글자 아시는 분?', time: '1분 전' },
-          ].map((item, i) => (
-            <View key={i} style={styles.feedItem}>
-              <View style={styles.feedHeader}>
-                <Text style={styles.feedUser}>{item.user}</Text>
-                <Text style={styles.feedTime}>{item.time}</Text>
+          <Text style={styles.postBody}>{POST_BODY}</Text>
+          <Text style={styles.hintHelper}>
+            💡 막히면 힌트: {hint}
+          </Text>
+
+          <Text style={styles.caption}>
+            <Text style={styles.captionSub}>
+              아래 댓글 칸에 영문 대문자로 입력하면 다마고치 화면으로 이동해요.
+            </Text>
+          </Text>
+
+          {isUnlocked ? (
+            <TouchableOpacity onPress={handleGoToTamagotchi}>
+              <Text style={styles.inlineLink}>🐣 내 다마고치로 바로가기</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity onPress={handleGoToDnaDemo} style={styles.dnaLinkWrap}>
+            <Text style={styles.inlineLink}>🧬 펫 DNA 생성기 데모</Text>
+          </TouchableOpacity>
+
+          {/* 좋아요 / 댓글 */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.outlineBtn} activeOpacity={0.85}>
+              <Text style={styles.outlineBtnText}>💬 8</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.outlineBtn} activeOpacity={0.85}>
+              <Text style={styles.outlineBtnText}>👍 5</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* 댓글 */}
+          {COMMENTS.map((c) => (
+            <View key={c.id} style={styles.commentBlock}>
+              <View style={styles.commentTop}>
+                <View style={[styles.cAvatar, { backgroundColor: c.avatarBg }]}>
+                  <Text style={styles.cAvatarText}>{c.initial}</Text>
+                </View>
+                <View style={styles.commentMeta}>
+                  <Text style={styles.authorLevel}>{c.level}</Text>
+                  <Text style={styles.authorName}>{c.user}</Text>
+                </View>
+                <TouchableOpacity style={styles.moreBtn} hitSlop={12}>
+                  <Text style={styles.moreDots}>⋮</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.feedMsg}>{item.msg}</Text>
+              <Text style={styles.commentBody}>{c.body}</Text>
             </View>
           ))}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          {/* 명령어 입력 — 댓글 작성 UI */}
+          <View style={[styles.commentBlock, styles.composerBlock]}>
+            <View style={styles.commentTop}>
+              <View style={[styles.cAvatar, { backgroundColor: "#6366F1" }]}>
+                <Text style={styles.cAvatarText}>나</Text>
+              </View>
+              <View style={styles.commentMeta}>
+                <Text style={styles.authorLevel}>플레이어 Lv.1</Text>
+                <Text style={styles.authorName}>비밀 명령어</Text>
+              </View>
+            </View>
+            <View style={styles.composerInner}>
+              <View style={styles.composerFieldRow}>
+                <TextInput
+                  style={styles.commentInput}
+                  value={input}
+                  onChangeText={setInput}
+                  placeholder="댓글처럼 특별 명령어를 입력하세요…"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="characters"
+                  returnKeyType="send"
+                  onSubmitEditing={handleSubmit}
+                />
+                <TouchableOpacity
+                  style={styles.composerSend}
+                  onPress={handleSubmit}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.composerSendText}>등록</Text>
+                </TouchableOpacity>
+              </View>
+              {showError ? (
+                <Text style={styles.composerError}>잘못된 명령어입니다. 힌트를 확인해 주세요.</Text>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.bottomPad} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: "#FFFFFF",
+  },
+  flex: {
+    flex: 1,
   },
   scroll: {
-    padding: 20,
-    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#fff',
+  pageTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#111827",
+    textAlign: "center",
     marginBottom: 20,
   },
-  hintBanner: {
-    backgroundColor: '#2a2a4e',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#ffcc00',
-    marginBottom: 16,
+  category: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: BLUE,
+    marginBottom: 10,
   },
-  hintIcon: {
-    fontSize: 24,
+  postTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 8,
+    lineHeight: 30,
+  },
+  meta: {
+    fontSize: 13,
+    color: GREY_TEXT,
+    marginBottom: 18,
+  },
+  authorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  authorAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
-  hintContent: {
+  authorAvatarEmoji: {
+    fontSize: 26,
+  },
+  authorTextBlock: {
     flex: 1,
   },
-  hintTitle: {
-    color: '#ffcc00',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
+  authorLevel: {
+    fontSize: 12,
+    color: GREY_TEXT,
+    marginBottom: 2,
   },
-  hintText: {
-    color: '#fff',
+  authorName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "700",
+    color: "#111827",
   },
-  quickAccess: {
-    backgroundColor: '#3a5a3a',
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#5a8a5a',
+  moreBtn: {
+    padding: 4,
   },
-  quickAccessText: {
-    color: '#88ff88',
+  moreDots: {
+    fontSize: 20,
+    color: "#9CA3AF",
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+  postBody: {
     fontSize: 16,
-    fontWeight: '700',
+    color: "#111827",
+    lineHeight: 24,
+    marginBottom: 12,
   },
-  demoLink: {
-    backgroundColor: '#2a2a4e',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#5a5a8e',
-  },
-  demoLinkText: {
-    color: '#cdb4ff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  inputSection: {
-    marginBottom: 24,
-  },
-  inputLabel: {
-    color: '#888',
+  hintHelper: {
     fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
+    color: GREY_TEXT,
+    lineHeight: 20,
+    marginBottom: 14,
   },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#2a2a4e',
-    borderRadius: 12,
-    padding: 14,
-    color: '#fff',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#3a3a6e',
-  },
-  sendBtn: {
-    backgroundColor: '#4488ff',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-  },
-  sendBtnText: {
-    color: '#fff',
+  caption: {
     fontSize: 15,
-    fontWeight: '700',
+    color: "#111827",
+    lineHeight: 22,
+    marginBottom: 10,
   },
-  errorText: {
-    color: '#ff4444',
+  captionSub: {
     fontSize: 13,
-    marginTop: 8,
-    fontWeight: '600',
+    color: GREY_TEXT,
+    fontWeight: "400",
   },
-  feed: {
-    gap: 12,
-  },
-  feedTitle: {
-    color: '#888',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  feedItem: {
-    backgroundColor: '#2a2a4e',
-    borderRadius: 12,
-    padding: 14,
-  },
-  feedHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  inlineLink: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: BLUE,
     marginBottom: 6,
   },
-  feedUser: {
-    color: '#4488ff',
-    fontSize: 13,
-    fontWeight: '700',
+  dnaLinkWrap: {
+    marginBottom: 20,
   },
-  feedTime: {
-    color: '#666',
-    fontSize: 11,
+  actionButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 8,
   },
-  feedMsg: {
-    color: '#ddd',
+  outlineBtn: {
+    flex: 1,
+    maxWidth: 140,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: "center",
+  },
+  outlineBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: BORDER,
+    marginVertical: 20,
+  },
+  commentBlock: {
+    marginBottom: 22,
+  },
+  commentTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  cAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  cAvatarText: {
+    color: "#FFFFFF",
     fontSize: 14,
-    lineHeight: 20,
+    fontWeight: "800",
+  },
+  commentMeta: {
+    flex: 1,
+  },
+  commentBody: {
+    marginLeft: 52,
+    marginTop: 8,
+    fontSize: 15,
+    color: "#111827",
+    lineHeight: 22,
+  },
+  composerBlock: {
+    marginTop: 4,
+    paddingTop: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: BORDER,
+  },
+  composerInner: {
+    marginLeft: 52,
+    marginTop: 8,
+  },
+  composerFieldRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingLeft: 12,
+    paddingRight: 4,
+    minHeight: 44,
+  },
+  commentInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#111827",
+    paddingVertical: 10,
+    paddingRight: 8,
+    maxHeight: 120,
+  },
+  composerSend: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  composerSendText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: BLUE,
+  },
+  composerError: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#DC2626",
+    fontWeight: "600",
+  },
+  bottomPad: {
+    height: 16,
   },
 });
