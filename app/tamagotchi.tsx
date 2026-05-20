@@ -12,6 +12,7 @@ import TamagotchiFrame from '../src/components/TamagotchiFrame';
 import PixelCharacter from '../src/components/PixelCharacter';
 import StatusIndicators from '../src/components/StatusIndicators';
 import ActionButtons from '../src/components/ActionButtons';
+import FeedingAnimation from '../src/components/FeedingAnimation';
 import GrowthStageLabel from '../src/components/GrowthStageLabel';
 import BattleRecord from '../src/components/BattleRecord';
 
@@ -20,6 +21,8 @@ export default function TamagotchiScreen() {
   const { state, isLoaded, feed, clean, play, unlock, restart, isHungry } =
     useTamagotchiState();
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isFeeding, setIsFeeding] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
 
   // Auto-unlock on first visit
   React.useEffect(() => {
@@ -33,6 +36,33 @@ export default function TamagotchiScreen() {
     play();
     setTimeout(() => setIsPlaying(false), 2000);
   }, [play]);
+
+  const handleFeed = useCallback(() => {
+    if (isFeeding) return;
+    setIsFeeding(true);
+    setIsPlaying(true); // happy expression during the bite
+    setTimeout(() => {
+      feed();
+      setIsFeeding(false);
+      setIsPlaying(false);
+    }, 950);
+  }, [feed, isFeeding]);
+
+  const handleClean = useCallback(() => {
+    if (isCleaning) return;
+    if (state.poopCount === 0) {
+      clean();
+      return;
+    }
+    setIsCleaning(true);
+    // Stagger: poop[i] starts at i*70ms with 360ms duration. Last item finishes
+    // at (poopCount-1)*70 + 360. Cap at MAX_POOP=6 → max ≈ 710ms.
+    const sweepMs = (state.poopCount - 1) * 70 + 380;
+    setTimeout(() => {
+      clean();
+      setIsCleaning(false);
+    }, sweepMs);
+  }, [clean, isCleaning, state.poopCount]);
 
   const handleBattle = () => {
     if (state.isDead) return;
@@ -67,13 +97,16 @@ export default function TamagotchiScreen() {
               isSick={state.isSick}
               isDead={state.isDead}
               isPlaying={isPlaying}
+              dna={state.dna}
             />
             <StatusIndicators
               poopCount={state.poopCount}
               isHungry={isHungry}
               isSick={state.isSick}
               isDead={state.isDead}
+              isCleaning={isCleaning}
             />
+            <FeedingAnimation active={isFeeding} />
           </View>
         </TamagotchiFrame>
 
@@ -94,10 +127,10 @@ export default function TamagotchiScreen() {
         ) : (
           <>
             <ActionButtons
-              onFeed={feed}
-              onClean={clean}
+              onFeed={handleFeed}
+              onClean={handleClean}
               onPlay={handlePlay}
-              disabled={state.isDead}
+              disabled={state.isDead || isFeeding || isCleaning}
             />
             <TouchableOpacity
               style={[styles.battleBtn, state.isDead && styles.battleBtnDisabled]}

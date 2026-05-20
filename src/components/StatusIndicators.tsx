@@ -1,5 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 import PixelSprite from './PixelSprite';
 import { SPRITES } from '../constants/sprites';
 
@@ -8,9 +16,16 @@ interface Props {
   isHungry: boolean;
   isSick: boolean;
   isDead: boolean;
+  isCleaning: boolean;
 }
 
-export default function StatusIndicators({ poopCount, isHungry, isSick, isDead }: Props) {
+export default function StatusIndicators({
+  poopCount,
+  isHungry,
+  isSick,
+  isDead,
+  isCleaning,
+}: Props) {
   if (isDead) return null;
 
   return (
@@ -27,12 +42,43 @@ export default function StatusIndicators({ poopCount, isHungry, isSick, isDead }
       )}
       <View style={styles.poopRow}>
         {Array.from({ length: poopCount }).map((_, i) => (
-          <View key={i} style={styles.poopItem}>
-            <PixelSprite sprite={SPRITES.poop} scale={1.5} />
-          </View>
+          <PoopItem key={i} index={i} isCleaning={isCleaning} />
         ))}
       </View>
     </View>
+  );
+}
+
+function PoopItem({ index, isCleaning }: { index: number; isCleaning: boolean }) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(-16);
+
+  // Bounce-in on mount (new poop appearing)
+  useEffect(() => {
+    opacity.value = withTiming(1, { duration: 220 });
+    translateY.value = withSpring(0, { damping: 8, stiffness: 140 });
+  }, [opacity, translateY]);
+
+  // Sweep up + fade out when cleaning, staggered left-to-right
+  useEffect(() => {
+    if (!isCleaning) return;
+    const delay = index * 70;
+    opacity.value = withDelay(delay, withTiming(0, { duration: 280 }));
+    translateY.value = withDelay(
+      delay,
+      withTiming(-32, { duration: 360, easing: Easing.in(Easing.quad) }),
+    );
+  }, [isCleaning, index, opacity, translateY]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.poopItem, style]}>
+      <PixelSprite sprite={SPRITES.poop} scale={1.5} />
+    </Animated.View>
   );
 }
 

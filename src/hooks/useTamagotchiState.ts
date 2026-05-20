@@ -7,6 +7,7 @@ import {
   TamagotchiData,
   Stage,
 } from '../constants/config';
+import { generatePetDNA } from '../lib/petGenerator';
 
 const STORAGE_KEY = '@tamagotchi_state';
 
@@ -72,6 +73,10 @@ export function useTamagotchiState() {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed: TamagotchiData = JSON.parse(raw);
+        // Migrate legacy saves that predate the dna field.
+        if (parsed.isUnlocked && !parsed.dna) {
+          parsed.dna = generatePetDNA();
+        }
         const reconciled = reconcileState(parsed, Date.now());
         setState(reconciled);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reconciled));
@@ -126,6 +131,7 @@ export function useTamagotchiState() {
       lastCleanTime: now,
       createdAt: now,
       isUnlocked: true,
+      dna: generatePetDNA(),
     };
     await save(newState);
   }, [save]);
@@ -139,6 +145,7 @@ export function useTamagotchiState() {
       createdAt: now,
       isUnlocked: true,
       battleRecord: stateRef.current.battleRecord, // preserve battle record
+      dna: generatePetDNA(),
     };
     await save(newState);
   }, [save]);

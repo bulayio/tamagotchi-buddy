@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -11,15 +11,17 @@ import Animated, {
 import PixelSprite from './PixelSprite';
 import { SPRITES } from '../constants/sprites';
 import { Stage } from '../constants/config';
+import { PetDNA, spriteForStage } from '../lib/petGenerator';
 
 interface Props {
   stage: Stage;
   isSick: boolean;
   isDead: boolean;
   isPlaying: boolean;
+  dna: PetDNA | null;
 }
 
-export default function PixelCharacter({ stage, isSick, isDead, isPlaying }: Props) {
+export default function PixelCharacter({ stage, isSick, isDead, isPlaying, dna }: Props) {
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const rotate = useSharedValue(0);
@@ -78,14 +80,13 @@ export default function PixelCharacter({ stage, isSick, isDead, isPlaying }: Pro
     ],
   }));
 
-  const getSpriteKey = () => {
-    if (isDead) return 'dead';
-    if (isPlaying) return 'happy';
-    if (isSick) return 'sick';
-    return stage;
-  };
-
-  const sprite = SPRITES[getSpriteKey()];
+  const sprite = useMemo(() => {
+    if (isDead) return SPRITES.dead;
+    if (!dna) return SPRITES.dead; // shouldn't happen post-unlock, defensive
+    if (isPlaying) return spriteForStage(dna, stage, 'happy');
+    if (isSick) return spriteForStage(dna, stage, 'sick');
+    return spriteForStage(dna, stage, null);
+  }, [dna, stage, isDead, isPlaying, isSick]);
 
   return (
     <Animated.View style={[styles.container, animStyle]}>

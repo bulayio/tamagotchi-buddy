@@ -1,3 +1,5 @@
+import type { PetDNA } from '../lib/petGenerator';
+
 export const SECRET_COMMAND = 'BUDDY';
 
 export const HINTS = [
@@ -43,6 +45,7 @@ export interface TamagotchiData {
   createdAt: number;
   isUnlocked: boolean;
   battleRecord: { wins: number; losses: number; npcWins: number };
+  dna: PetDNA | null; // null until first unlock; legacy saves get migrated on load
 }
 
 export const DEFAULT_STATE: TamagotchiData = {
@@ -56,4 +59,5 @@ export const DEFAULT_STATE: TamagotchiData = {
   createdAt: Date.now(),
   isUnlocked: false,
   battleRecord: { wins: 0, losses: 0, npcWins: 0 },
+  dna: null,
 };

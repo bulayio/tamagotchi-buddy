@@ -50,6 +50,10 @@ export default function CommunityScreen() {
     router.push('/tamagotchi');
   };
 
+  const handleGoToDnaDemo = () => {
+    router.push('/dna-demo');
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -73,6 +77,10 @@ export default function CommunityScreen() {
             <Text style={styles.quickAccessText}>🐣 내 다마고치 보러가기</Text>
           </TouchableOpacity>
         )}
+
+        <TouchableOpacity style={styles.demoLink} onPress={handleGoToDnaDemo}>
+          <Text style={styles.demoLinkText}>🧬 펫 DNA 생성기 데모</Text>
+        </TouchableOpacity>
 
         {/* Command Input */}
         <View style={styles.inputSection}>
@@ -174,6 +182,20 @@ const styles = StyleSheet.create({
   quickAccessText: {
     color: '#88ff88',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  demoLink: {
+    backgroundColor: '#2a2a4e',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#5a5a8e',
+  },
+  demoLinkText: {
+    color: '#cdb4ff',
+    fontSize: 14,
     fontWeight: '700',
   },
   inputSection: {
