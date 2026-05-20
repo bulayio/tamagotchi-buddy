@@ -109,29 +109,29 @@ export default function DemoPanel({
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     borderTopWidth: 1,
     borderTopColor: '#eee',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   header: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     color: '#999',
     letterSpacing: 2,
   },
   row: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
   btn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
     backgroundColor: '#f1eaf6',
     borderWidth: 1,
     borderColor: '#d6c9e0',
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   btnText: {
     color: '#3b2557',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   btnTextSelected: {

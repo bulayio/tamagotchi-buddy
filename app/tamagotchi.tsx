@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, {
@@ -317,7 +318,11 @@ export default function TamagotchiScreen() {
         </TouchableOpacity>
       </View>
 
-      <Animated.View style={[styles.content, revealStyle]}>
+      <Animated.View style={[styles.contentWrap, revealStyle]}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
         <FlippableDevice
           flipped={isFlipped}
           front={
@@ -443,6 +448,7 @@ export default function TamagotchiScreen() {
           onTriggerDead={triggerDeadDev}
           onHeal={healDev}
         />
+        </ScrollView>
       </Animated.View>
 
       {isHatching && (
@@ -485,6 +491,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
   },
   loading: {
     flex: 1,
@@ -500,42 +509,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 8,
   },
   backBtn: {
     color: '#4488ff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   headerTitle: {
     color: '#1a1a2e',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
   },
   flipBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: '#3b2557',
-    minWidth: 80,
+    minWidth: 64,
     alignItems: 'center',
   },
   flipBtnText: {
     color: '#3b2557',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
   flipBtnDisabled: {
     opacity: 0.35,
   },
-  content: {
+  contentWrap: {
     flex: 1,
-    paddingHorizontal: 24,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   deathActions: {
     alignItems: 'center',
@@ -561,47 +573,47 @@ const styles = StyleSheet.create({
   },
   battleBtn: {
     backgroundColor: '#5a2a6e',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 2,
     borderWidth: 2,
     borderColor: '#7a4a9e',
   },
   battleBtnText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
   },
   selectionWrap: {
     width: '100%',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   selectionRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     width: '100%',
     justifyContent: 'center',
   },
   oppCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
-    maxWidth: 110,
+    maxWidth: 100,
   },
   oppEmoji: {
-    fontSize: 28,
+    fontSize: 24,
   },
   oppTitle: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
-    marginTop: 4,
+    marginTop: 2,
   },
   cancelBtn: {
     paddingHorizontal: 24,
