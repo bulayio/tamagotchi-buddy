@@ -663,7 +663,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 24,
     alignItems: 'center',
     gap: 8,

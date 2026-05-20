@@ -70,7 +70,7 @@ export const DEFAULT_STATE: TamagotchiData = {
   isUnlocked: false,
   battleRecord: { wins: 0, losses: 0, npcWins: 0 },
   dna: null,
-  gems: 1000,
+  gems: 20000,
   poopCleansToday: 0,
   lastPoopCleanDayKey: '',
 };

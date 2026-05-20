@@ -81,7 +81,7 @@ export function useTamagotchiState() {
         if (parsed.isUnlocked && !parsed.dna) {
           parsed.dna = generatePetDNA();
         }
-        if (typeof parsed.gems !== 'number') parsed.gems = 1000;
+        if (typeof parsed.gems !== 'number') parsed.gems = DEFAULT_STATE.gems;
         if (typeof parsed.poopCleansToday !== 'number') parsed.poopCleansToday = 0;
         if (typeof parsed.lastPoopCleanDayKey !== 'string') parsed.lastPoopCleanDayKey = '';
         const reconciled = reconcileState(parsed, Date.now());
