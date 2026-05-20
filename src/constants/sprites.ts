@@ -11,21 +11,24 @@ const R = '#ff4444'; // red
 const BR = '#8b6914'; // brown
 const P = '#ff8fb1'; // pink (cake decoration)
 const O = '#ff9933'; // orange (flame)
+const LG = '#a8a8a8'; // light gray (tombstone fill)
+const DG = '#6a6a6a'; // dark gray (tombstone shadow)
 
 export const SPRITES: Record<string, Sprite> = {
   dead: [
-    [null, null, null, C, C, C, C, C, null, null, null, null],
-    [null, null, C, BR, BR, BR, BR, BR, C, null, null, null],
-    [null, C, BR, BR, BR, BR, BR, BR, BR, C, null, null],
-    [null, C, BR, BR, BR, BR, BR, BR, BR, C, null, null],
-    [null, C, BR, BR, BR, BR, BR, BR, BR, C, null, null],
-    [C, C, C, C, C, C, C, C, C, C, C, null],
-    [C, BR, BR, BR, BR, BR, BR, BR, BR, BR, C, null],
-    [C, BR, C, C, BR, BR, BR, C, C, BR, C, null],
-    [C, BR, C, C, BR, BR, BR, C, C, BR, C, null],
-    [C, BR, BR, BR, C, C, C, BR, BR, BR, C, null],
-    [C, BR, BR, BR, BR, BR, BR, BR, BR, BR, C, null],
-    [null, C, C, C, C, C, C, C, C, C, null, null],
+    // Gray cross tombstone — vertical bar at cols 5-6, horizontal arm rows 3-6
+    [null, null, null, null, C, C, C, C, null, null, null, null],
+    [null, null, null, null, C, LG, LG, C, null, null, null, null],
+    [null, null, null, null, C, LG, DG, C, null, null, null, null],
+    [null, C, C, C, C, LG, DG, C, C, C, C, null],
+    [null, C, LG, LG, LG, LG, LG, LG, DG, DG, C, null],
+    [null, C, LG, LG, LG, LG, LG, LG, DG, DG, C, null],
+    [null, C, C, C, C, LG, DG, C, C, C, C, null],
+    [null, null, null, null, C, LG, DG, C, null, null, null, null],
+    [null, null, null, null, C, LG, DG, C, null, null, null, null],
+    [null, null, null, null, C, LG, DG, C, null, null, null, null],
+    [null, null, null, C, C, LG, DG, DG, C, C, null, null],
+    [null, null, C, C, LG, LG, DG, DG, DG, C, C, null],
   ],
   poop: [
     [null, null, null, null, null, null, null, null, null, null, null, null],

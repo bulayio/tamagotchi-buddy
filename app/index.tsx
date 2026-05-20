@@ -185,7 +185,13 @@ export default function CommunityFeedScreen() {
             <TouchableOpacity
               key={item.key}
               style={styles.navItem}
-              onPress={() => router.push(item.route as never)}
+              onPress={() => {
+                if (item.route === '/tamagotchi') {
+                  router.push('/tamagotchi?hatch=1' as never);
+                } else {
+                  router.push(item.route as never);
+                }
+              }}
               activeOpacity={0.7}
             >
               <Text style={styles.navIcon}>{item.icon}</Text>
