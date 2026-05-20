@@ -36,6 +36,173 @@ export const GAME_GENRE_LABELS: Record<GameGenre, string> = {
   shooting: "슈팅",
 };
 
+export const PET_RARITIES = ["normal", "rare", "epic", "legendary"] as const;
+export type PetRarity = (typeof PET_RARITIES)[number];
+
+export const PET_RARITY_LABELS: Record<PetRarity, string> = {
+  normal: "노말",
+  rare: "레어",
+  epic: "에픽",
+  legendary: "레전더리",
+};
+
+/** 희귀도 윤곽선(O) — 노말 검정·레어 어두운 금색·에픽 진보라·레전더리 빨간기 주황 */
+export const PET_RARITY_OUTLINE_COLORS: Record<PetRarity, string> = {
+  normal: "#000000",
+  rare: "#b8941e",
+  epic: "#5b21b6",
+  legendary: "#f4511e",
+};
+
+type BodyFill = Pick<Palette, "body" | "bodyDark" | "cheek" | "accent">;
+
+function clamp255(n: number): number {
+  return Math.max(0, Math.min(255, Math.round(n)));
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const x = (v: number) => clamp255(v).toString(16).padStart(2, "0");
+  return `#${x(r)}${x(g)}${x(b)}`;
+}
+
+/** sRGB 상대 휘도 0–1 (WCAG) */
+function relativeLuminance(hex: string): number {
+  const lin = hexToRgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const R = r / 255;
+  const G = g / 255;
+  const B = b / 255;
+  const max = Math.max(R, G, B);
+  const min = Math.min(R, G, B);
+  const d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === R) h = ((G - B) / d + (G < B ? 6 : 0)) / 6;
+    else if (max === G) h = ((B - R) / d + 2) / 6;
+    else h = ((R - G) / d + 4) / 6;
+  }
+  const l = (max + min) / 2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  return [h * 360, s, l];
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const hh = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1));
+  const m = l - c / 2;
+  let rp = 0;
+  let gp = 0;
+  let bp = 0;
+  if (hh < 60) {
+    rp = c;
+    gp = x;
+  } else if (hh < 120) {
+    rp = x;
+    gp = c;
+  } else if (hh < 180) {
+    gp = c;
+    bp = x;
+  } else if (hh < 240) {
+    gp = x;
+    bp = c;
+  } else if (hh < 300) {
+    rp = x;
+    bp = c;
+  } else {
+    rp = c;
+    bp = x;
+  }
+  return [(rp + m) * 255, (gp + m) * 255, (bp + m) * 255];
+}
+
+/**
+ * 윤곽선 hex와 PRNG로 몸·음영·볼·액센트 생성.
+ * 윤곽이 어두우면 밝은 몸, 밝으면 어두운 몸으로 대비를 맞춤.
+ */
+function contrastingBodyFillFromOutline(
+  outlineHex: string,
+  rng: () => number,
+): BodyFill {
+  const [or, og, ob] = hexToRgb(outlineHex);
+  const [oH] = rgbToHsl(or, og, ob);
+  const lum = relativeLuminance(outlineHex);
+  const useLightBody = lum < 0.42;
+
+  if (useLightBody) {
+    const bh = (oH + 110 + rng() * 130) % 360;
+    const bS = 0.26 + rng() * 0.44;
+    const bL = 0.66 + rng() * 0.28;
+    const [br, bg, bb] = hslToRgb(bh, bS, bL);
+    const body = rgbToHex(br, bg, bb);
+    const bLd = Math.max(0.2, bL - 0.09 - rng() * 0.14);
+    const [dr, dg, db] = hslToRgb(bh, Math.min(0.92, bS + 0.1), bLd);
+    const bodyDark = rgbToHex(dr, dg, db);
+    const ch = (bh + 85 + rng() * 55) % 360;
+    const [cr, cg, cb] = hslToRgb(ch, 0.58 + rng() * 0.32, 0.48 + rng() * 0.18);
+    const cheek = rgbToHex(cr, cg, cb);
+    const ah = (bh + 165 + rng() * 90) % 360;
+    const [ar, ag, ab] = hslToRgb(ah, 0.48 + rng() * 0.32, 0.45 + rng() * 0.18);
+    const accent = rgbToHex(ar, ag, ab);
+    return { body, bodyDark, cheek, accent };
+  }
+
+  const bh = (oH + 145 + rng() * 110) % 360;
+  const bS = 0.32 + rng() * 0.42;
+  const bL = 0.14 + rng() * 0.24;
+  const [br, bg, bb] = hslToRgb(bh, bS, bL);
+  const body = rgbToHex(br, bg, bb);
+  const bLd = Math.max(0.06, bL - 0.07 - rng() * 0.12);
+  const [dr, dg, db] = hslToRgb(bh, Math.min(0.88, bS + 0.12), bLd);
+  const bodyDark = rgbToHex(dr, dg, db);
+  const ch = (bh + 100 + rng() * 50) % 360;
+  const [cr, cg, cb] = hslToRgb(ch, 0.62 + rng() * 0.22, 0.52 + rng() * 0.18);
+  const cheek = rgbToHex(cr, cg, cb);
+  const ah = (bh + 200 + rng() * 70) % 360;
+  const [ar, ag, ab] = hslToRgb(ah, 0.48 + rng() * 0.28, 0.48 + rng() * 0.2);
+  const accent = rgbToHex(ar, ag, ab);
+  return { body, bodyDark, cheek, accent };
+}
+
+/** 몸·음영·볼·액센트는 등급과 무관하게 노말(검정 윤곽)과 동일한 생성 규칙을 씀 */
+function bodyFillFromOutlineForDna(dna: PetDNA): BodyFill {
+  const outlineHex = PET_RARITY_OUTLINE_COLORS.normal;
+  const rng = mulberry32(
+    hashString(`${dna.seed}\0bodyFromOutline\0${outlineHex}`),
+  );
+  return contrastingBodyFillFromOutline(outlineHex, rng);
+}
+
+function paletteWithRarityStyle(dna: PetDNA): Palette {
+  const base = PALETTES[dna.palette];
+  const tier = dna.rarity ?? "normal";
+  const fill = bodyFillFromOutlineForDna(dna);
+  return {
+    ...base,
+    outline: PET_RARITY_OUTLINE_COLORS[tier],
+    body: fill.body,
+    bodyDark: fill.bodyDark,
+    cheek: fill.cheek,
+    accent: fill.accent,
+  };
+}
+
 export interface PetDNA {
   seed: string;
   /** 펫 생성 시 부가정보(선호 장르). 시뮬에서는 시드로 무작위 배정. */
@@ -44,6 +211,8 @@ export interface PetDNA {
   eyes: EyeStyle;
   mouth: MouthStyle;
   palette: PaletteName;
+  /** 활동·플레이타임 기반 등급. `dnaFromComposite`·Playio 연동 시 설정. */
+  rarity?: PetRarity;
   /**
    * 프로토타입/연동용: 활동·플레이타임을 DNA 생성에 합성할 때만 설정.
    * 실제 저장 DNA에는 보통 없음.
@@ -110,6 +279,27 @@ function isGameGenre(v: unknown): v is GameGenre {
 
 function genrePaletteSet(genre: GameGenre): readonly PaletteName[] {
   return GENRE_PALETTE_POOL[genre];
+}
+
+const PLAY_TIME_SCORE_CAP_MINUTES = 10080; // dna-demo 상한(약 7일)과 동일
+
+function playTimeScore(minutes: number): number {
+  const t = Math.max(0, minutes);
+  return Math.min(100, (t / PLAY_TIME_SCORE_CAP_MINUTES) * 100);
+}
+
+/** 활동점수(0–100)와 플레이 시간(분) 가중 합산 → 노말 / 레어 / 에픽 / 레전더리. */
+export function computePetRarity(
+  activityScore: number,
+  gameplayTimeMinutes: number,
+): PetRarity {
+  const a = Math.max(0, Math.min(100, Math.round(activityScore)));
+  const p = playTimeScore(gameplayTimeMinutes);
+  const score = 0.55 * a + 0.45 * p;
+  if (score < 40) return "normal";
+  if (score < 65) return "rare";
+  if (score < 82) return "epic";
+  return "legendary";
 }
 
 function isCompletePetDNA(dna: Partial<PetDNA>): dna is PetDNA {
@@ -191,6 +381,7 @@ export function dnaFromComposite(
     seed: baseSeed,
     activityScore: a,
     gameplayTimeMinutes: t,
+    rarity: computePetRarity(a, t),
   };
 }
 
@@ -591,7 +782,7 @@ export function composeSprite(
   stage: BodyStage,
   variant: SpriteVariant,
 ): PixelGrid {
-  const palette = PALETTES[dna.palette];
+  const palette = paletteWithRarityStyle(dna);
   const silhouette = cloneTokenGrid(BODY_SHAPES[dna.bodyShape][stage]);
   const stackPad = shouldShowHat(stage, variant) ? SPRITE_TOP_PAD_ROWS : 0;
   const canvas: PixelGrid = padCanvasTop(renderBody(silhouette, palette), stackPad);
@@ -644,7 +835,7 @@ export function composeSprite(
 
 // Build an egg sprite tinted with the DNA's palette (palette.body for shell).
 export function composeEggSprite(dna: PetDNA): PixelGrid {
-  const palette = PALETTES[dna.palette];
+  const palette = paletteWithRarityStyle(dna);
   const O = palette.outline;
   const B = palette.body;
   const D = palette.bodyDark;
@@ -664,6 +855,32 @@ export function composeEggSprite(dna: PetDNA): PixelGrid {
   ];
   applyEggGenrePattern(grid, dna.genre, palette);
   return grid;
+}
+
+/**
+ * 스프라이트와 동일 크기의 투명 배경. 희귀도는 `composeSprite`의 팔레트 `outline`(O 토큰)으로 반영.
+ */
+export function composeRarityBackdrop(
+  _dna: PetDNA,
+  _variant: SpriteVariant,
+  innerRows: number,
+  innerCols: number,
+): PixelGrid {
+  return Array.from({ length: innerRows }, () =>
+    Array.from({ length: innerCols }, () => null),
+  );
+}
+
+export function spriteForStageWithBackdrop(
+  dna: PetDNA,
+  stage: Stage,
+  variant: SpriteVariant,
+): { backdrop: PixelGrid; sprite: PixelGrid } {
+  const sprite = spriteForStage(dna, stage, variant);
+  const innerRows = sprite.length;
+  const innerCols = sprite[0]?.length ?? 12;
+  const backdrop = composeRarityBackdrop(dna, variant, innerRows, innerCols);
+  return { backdrop, sprite };
 }
 
 export function spriteForStage(

@@ -9,9 +9,13 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import PixelSprite from './PixelSprite';
+import PixelPetView from './PixelPetView';
 import { SPRITES, PIXEL_SIZE } from '../constants/sprites';
 import { Stage } from '../constants/config';
-import { PetDNA, spriteForStage } from '../lib/petGenerator';
+import {
+  PetDNA,
+  spriteForStageWithBackdrop,
+} from '../lib/petGenerator';
 import { useEggMetrics } from '../lib/eggMetrics';
 
 interface Props {
@@ -81,31 +85,39 @@ export default function PixelCharacter({ stage, isSick, isDead, isPlaying, dna }
     ],
   }));
 
-  const sprite = useMemo(() => {
-    if (isDead) return SPRITES.dead;
-    if (!dna) return SPRITES.dead; // shouldn't happen post-unlock, defensive
-    if (isPlaying) return spriteForStage(dna, stage, 'happy');
-    if (isSick) return spriteForStage(dna, stage, 'sick');
-    return spriteForStage(dna, stage, null);
+  const petPack = useMemo(() => {
+    if (isDead || !dna) return null;
+    if (isPlaying) return spriteForStageWithBackdrop(dna, stage, 'happy');
+    if (isSick) return spriteForStageWithBackdrop(dna, stage, 'sick');
+    return spriteForStageWithBackdrop(dna, stage, null);
   }, [dna, stage, isDead, isPlaying, isSick]);
 
   const { screenWidth, screenHeight } = useEggMetrics();
-  const spriteCols = sprite[0]?.length ?? 12;
-  const spriteRows = sprite.length ?? 12;
+  const deadSprite = SPRITES.dead;
+  const innerCols = petPack ? petPack.backdrop[0]?.length ?? 12 : deadSprite[0]?.length ?? 12;
+  const innerRows = petPack ? petPack.backdrop.length : deadSprite.length;
   // Fit sprite to ~60% of LCD width and ~70% of LCD height, then take the smaller.
   // Leaves room for the idle bounce and status indicators.
   const targetW = screenWidth * 0.6;
   const targetH = screenHeight * 0.7;
   const baseScale = Math.min(
-    targetW / (spriteCols * PIXEL_SIZE),
-    targetH / (spriteRows * PIXEL_SIZE),
+    targetW / (innerCols * PIXEL_SIZE),
+    targetH / (innerRows * PIXEL_SIZE),
   );
   const stageScale = stage === 'egg' ? 0.85 : 1;
   const scale = Math.max(1.4, baseScale * stageScale);
 
   return (
     <Animated.View style={[styles.container, animStyle]}>
-      <PixelSprite sprite={sprite} scale={scale} />
+      {petPack ? (
+        <PixelPetView
+          backdrop={petPack.backdrop}
+          sprite={petPack.sprite}
+          scale={scale}
+        />
+      ) : (
+        <PixelSprite sprite={deadSprite} scale={scale} />
+      )}
     </Animated.View>
   );
 }
