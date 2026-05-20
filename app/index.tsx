@@ -65,7 +65,7 @@ export default function CommunityScreen() {
   const handleSubmit = () => {
     if (input.trim().toUpperCase() === SECRET_COMMAND) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push("/tamagotchi");
+      router.push("/tamagotchi?hatch=1");
     } else {
       setShowError(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -74,7 +74,7 @@ export default function CommunityScreen() {
   };
 
   const handleGoToTamagotchi = () => {
-    router.push("/tamagotchi");
+    router.push("/tamagotchi?hatch=1");
   };
 
   const handleGoToDnaDemo = () => {

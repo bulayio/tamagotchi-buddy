@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,30 +6,109 @@ import {
   StyleSheet,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 import { useTamagotchiState } from '../src/hooks/useTamagotchiState';
 import TamagotchiFrame from '../src/components/TamagotchiFrame';
 import PixelCharacter from '../src/components/PixelCharacter';
 import StatusIndicators from '../src/components/StatusIndicators';
 import ActionButtons from '../src/components/ActionButtons';
 import FeedingAnimation from '../src/components/FeedingAnimation';
+import PlayHearts from '../src/components/PlayHearts';
 import GrowthStageLabel from '../src/components/GrowthStageLabel';
 import BattleRecord from '../src/components/BattleRecord';
+import BattleHud from '../src/components/BattleHud';
+import EggHatchOverlay from '../src/components/EggHatchOverlay';
+import DemoPanel from '../src/components/DemoPanel';
+import { BATTLE_CONFIG } from '../src/constants/config';
+import {
+  Opponent,
+  opponentLabel,
+  opponentToNpcType,
+  npcTapsAt,
+  npcFinalScore,
+  playerScore as computePlayerScore,
+  pvpFinalScore,
+} from '../src/lib/npcTapper';
+import { generatePetDNA, PetDNA } from '../src/lib/petGenerator';
+
+type BattlePhase = 'idle' | 'selecting' | 'playing' | 'done';
 
 export default function TamagotchiScreen() {
   const router = useRouter();
-  const { state, isLoaded, feed, clean, play, unlock, restart, isHungry } =
-    useTamagotchiState();
+  const params = useLocalSearchParams<{ hatch?: string }>();
+  const {
+    state,
+    isLoaded,
+    feed,
+    clean,
+    play,
+    unlock,
+    restart,
+    recordBattle,
+    isHungry,
+    setStageDev,
+    addPoopDev,
+  } = useTamagotchiState();
+
+  // Routine action animations
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFeeding, setIsFeeding] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
+  const [isHatching, setIsHatching] = useState(params.hatch === '1');
+
+  // Battle state machine
+  const [battlePhase, setBattlePhase] = useState<BattlePhase>('idle');
+  const [opponent, setOpponent] = useState<Opponent | null>(null);
+  const [opponentDna, setOpponentDna] = useState<PetDNA | null>(null);
+  const [playerTaps, setPlayerTaps] = useState(0);
+  const [opponentScore, setOpponentScore] = useState(0);
+  const [timeLeftMs, setTimeLeftMs] = useState<number>(BATTLE_CONFIG.DURATION_MS);
+  const [battleResult, setBattleResult] = useState<'win' | 'loss' | null>(null);
+  const tapsRef = useRef(0);
+  const battleStartRef = useRef(0);
+  const battleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const revealOpacity = useSharedValue(isHatching ? 0 : 1);
+  const revealScale = useSharedValue(isHatching ? 0.85 : 1);
+
+  useEffect(() => {
+    if (!isHatching) return;
+    revealOpacity.value = withDelay(
+      1000,
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }),
+    );
+    revealScale.value = withDelay(
+      1000,
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: revealOpacity.value,
+    transform: [{ scale: revealScale.value }],
+  }));
 
   // Auto-unlock on first visit
-  React.useEffect(() => {
+  useEffect(() => {
     if (isLoaded && !state.isUnlocked) {
       unlock();
     }
   }, [isLoaded, state.isUnlocked, unlock]);
+
+  // Cleanup any running battle timer on unmount
+  useEffect(() => {
+    return () => {
+      if (battleTimerRef.current) clearInterval(battleTimerRef.current);
+    };
+  }, []);
 
   const handlePlay = useCallback(() => {
     setIsPlaying(true);
@@ -40,7 +119,7 @@ export default function TamagotchiScreen() {
   const handleFeed = useCallback(() => {
     if (isFeeding) return;
     setIsFeeding(true);
-    setIsPlaying(true); // happy expression during the bite
+    setIsPlaying(true);
     setTimeout(() => {
       feed();
       setIsFeeding(false);
@@ -55,8 +134,6 @@ export default function TamagotchiScreen() {
       return;
     }
     setIsCleaning(true);
-    // Stagger: poop[i] starts at i*70ms with 360ms duration. Last item finishes
-    // at (poopCount-1)*70 + 360. Cap at MAX_POOP=6 → max ≈ 710ms.
     const sweepMs = (state.poopCount - 1) * 70 + 380;
     setTimeout(() => {
       clean();
@@ -64,9 +141,94 @@ export default function TamagotchiScreen() {
     }, sweepMs);
   }, [clean, isCleaning, state.poopCount]);
 
-  const handleBattle = () => {
-    if (state.isDead) return;
-    router.push('/battle');
+  // ── Battle ───────────────────────────────────────────────────────────
+  const finishBattle = useCallback(
+    (playerFinalRaw: number, npc: ReturnType<typeof opponentToNpcType>) => {
+      const finalPlayerScore = computePlayerScore(
+        playerFinalRaw,
+        state.stage,
+        state.isSick,
+      );
+      const finalOpponentScore = npc
+        ? npcFinalScore(npc)
+        : pvpFinalScore(finalPlayerScore);
+      setOpponentScore(finalOpponentScore);
+      const won = finalPlayerScore >= finalOpponentScore;
+      const result: 'win' | 'loss' = won ? 'win' : 'loss';
+      setBattleResult(result);
+      setBattlePhase('done');
+
+      // Record outcome
+      if (npc) {
+        recordBattle(won ? 'npcWin' : 'loss');
+      } else {
+        recordBattle(result);
+      }
+
+      // Return to idle after a brief result display
+      setTimeout(() => {
+        setBattlePhase('idle');
+        setOpponent(null);
+        setBattleResult(null);
+        setPlayerTaps(0);
+        setOpponentScore(0);
+        setTimeLeftMs(BATTLE_CONFIG.DURATION_MS);
+        tapsRef.current = 0;
+      }, 1800);
+    },
+    [recordBattle, state.stage, state.isSick],
+  );
+
+  const startBattle = useCallback(
+    (opp: Opponent) => {
+      setOpponent(opp);
+      setOpponentDna(generatePetDNA());
+      setPlayerTaps(0);
+      setOpponentScore(0);
+      setBattleResult(null);
+      setTimeLeftMs(BATTLE_CONFIG.DURATION_MS);
+      tapsRef.current = 0;
+      battleStartRef.current = Date.now();
+      setBattlePhase('playing');
+
+      const npc = opponentToNpcType(opp);
+      battleTimerRef.current = setInterval(() => {
+        const elapsed = Date.now() - battleStartRef.current;
+        const remaining = Math.max(0, BATTLE_CONFIG.DURATION_MS - elapsed);
+        setTimeLeftMs(remaining);
+
+        if (npc) {
+          setOpponentScore(npcTapsAt(elapsed, npc));
+        } else {
+          // PvP shadow: nudge opponent score toward player's current score
+          setOpponentScore((prev) => {
+            const target = Math.round(tapsRef.current * (0.8 + Math.random() * 0.4));
+            if (prev < target) return prev + 1;
+            return prev;
+          });
+        }
+
+        if (remaining <= 0) {
+          if (battleTimerRef.current) {
+            clearInterval(battleTimerRef.current);
+            battleTimerRef.current = null;
+          }
+          finishBattle(tapsRef.current, npc);
+        }
+      }, 100);
+    },
+    [finishBattle],
+  );
+
+  const handleTap = useCallback(() => {
+    if (battlePhase !== 'playing') return;
+    tapsRef.current += 1;
+    setPlayerTaps(tapsRef.current);
+  }, [battlePhase]);
+
+  const cancelSelection = () => {
+    setBattlePhase('idle');
+    setOpponent(null);
   };
 
   if (!isLoaded) {
@@ -78,6 +240,9 @@ export default function TamagotchiScreen() {
   }
 
   const { battleRecord } = state;
+  const battleActive = battlePhase === 'playing' || battlePhase === 'done';
+  const opponentNameLive =
+    opponent !== null ? opponentLabel(opponent) : '';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -89,7 +254,7 @@ export default function TamagotchiScreen() {
         <View style={{ width: 80 }} />
       </View>
 
-      <View style={styles.content}>
+      <Animated.View style={[styles.content, revealStyle]}>
         <TamagotchiFrame
           controls={
             !state.isDead ? (
@@ -97,36 +262,63 @@ export default function TamagotchiScreen() {
                 onFeed={handleFeed}
                 onClean={handleClean}
                 onPlay={handlePlay}
-                disabled={state.isDead || isFeeding || isCleaning}
+                disabled={
+                  state.isDead || isFeeding || isCleaning || battleActive
+                }
+                tapAction={
+                  battlePhase === 'playing'
+                    ? {
+                        onTap: handleTap,
+                        tapCount: playerTaps,
+                      }
+                    : undefined
+                }
               />
             ) : null
           }
         >
-          <View style={styles.screenContent}>
-            <PixelCharacter
-              stage={state.stage}
-              isSick={state.isSick}
-              isDead={state.isDead}
-              isPlaying={isPlaying}
-              dna={state.dna}
+          {/* Always-visible battle record at LCD top */}
+          <BattleRecord
+            wins={battleRecord.wins}
+            losses={battleRecord.losses}
+            npcWins={battleRecord.npcWins}
+          />
+
+          {battleActive ? (
+            <BattleHud
+              playerDna={state.dna}
+              playerStage={state.stage}
+              opponentDna={opponentDna}
+              opponentName={opponentNameLive}
+              playerScore={computePlayerScore(playerTaps, state.stage, state.isSick)}
+              opponentScore={opponentScore}
+              playerTaps={playerTaps}
+              timeLeftMs={timeLeftMs}
+              result={battleResult}
             />
-            <StatusIndicators
-              poopCount={state.poopCount}
-              isHungry={isHungry}
-              isSick={state.isSick}
-              isDead={state.isDead}
-              isCleaning={isCleaning}
-            />
-            <FeedingAnimation active={isFeeding} />
-          </View>
+          ) : (
+            <>
+              <PixelCharacter
+                stage={state.stage}
+                isSick={state.isSick}
+                isDead={state.isDead}
+                isPlaying={isPlaying}
+                dna={state.dna}
+              />
+              <StatusIndicators
+                poopCount={state.poopCount}
+                isHungry={isHungry}
+                isSick={state.isSick}
+                isDead={state.isDead}
+                isCleaning={isCleaning}
+              />
+              <FeedingAnimation active={isFeeding} />
+              <PlayHearts active={isPlaying && !isFeeding} />
+            </>
+          )}
         </TamagotchiFrame>
 
         <GrowthStageLabel stage={state.stage} isDead={state.isDead} />
-        <BattleRecord
-          wins={battleRecord.wins}
-          losses={battleRecord.losses}
-          npcWins={battleRecord.npcWins}
-        />
 
         {state.isDead ? (
           <View style={styles.deathActions}>
@@ -135,17 +327,75 @@ export default function TamagotchiScreen() {
               <Text style={styles.restartBtnText}>다시 시작</Text>
             </TouchableOpacity>
           </View>
-        ) : (
+        ) : battlePhase === 'idle' ? (
           <TouchableOpacity
-            style={[styles.battleBtn, state.isDead && styles.battleBtnDisabled]}
-            onPress={handleBattle}
-            disabled={state.isDead}
+            style={styles.battleBtn}
+            onPress={() => setBattlePhase('selecting')}
           >
             <Text style={styles.battleBtnText}>⚔️ 대결하기</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        ) : battlePhase === 'selecting' ? (
+          <View style={styles.selectionWrap}>
+            <View style={styles.selectionRow}>
+              <OpponentCard
+                emoji="👥"
+                title="PvP"
+                onPress={() => startBattle('pvp')}
+                tint="#3b2557"
+              />
+              <OpponentCard
+                emoji="🐣"
+                title="약체"
+                onPress={() => startBattle('npc_weak')}
+                tint="#2a4a2a"
+              />
+              <OpponentCard
+                emoji="🐉"
+                title="강체"
+                onPress={() => startBattle('npc_strong')}
+                tint="#4a2a2a"
+              />
+            </View>
+            <TouchableOpacity style={styles.cancelBtn} onPress={cancelSelection}>
+              <Text style={styles.cancelBtnText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <DemoPanel
+          currentStage={state.stage}
+          onSetStage={setStageDev}
+          onAddPoop={addPoopDev}
+        />
+      </Animated.View>
+
+      {isHatching && (
+        <EggHatchOverlay onComplete={() => setIsHatching(false)} />
+      )}
     </SafeAreaView>
+  );
+}
+
+function OpponentCard({
+  emoji,
+  title,
+  tint,
+  onPress,
+}: {
+  emoji: string;
+  title: string;
+  tint: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.oppCard, { backgroundColor: tint }]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <Text style={styles.oppEmoji}>{emoji}</Text>
+      <Text style={styles.oppTitle}>{title}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -188,12 +438,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  screenContent: {
-    flex: 1,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   deathActions: {
     alignItems: 'center',
     marginTop: 24,
@@ -220,17 +464,53 @@ const styles = StyleSheet.create({
     backgroundColor: '#5a2a6e',
     borderRadius: 14,
     paddingVertical: 14,
+    paddingHorizontal: 32,
     alignItems: 'center',
     marginTop: 4,
     borderWidth: 2,
     borderColor: '#7a4a9e',
   },
-  battleBtnDisabled: {
-    opacity: 0.4,
-  },
   battleBtnText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '800',
+  },
+  selectionWrap: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  oppCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    maxWidth: 110,
+  },
+  oppEmoji: {
+    fontSize: 28,
+  },
+  oppTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  cancelBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+  },
+  cancelBtnText: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -153,6 +153,36 @@ export function useTamagotchiState() {
     await save(newState);
   }, [save]);
 
+  // ── Dev / demo helpers ─────────────────────────────────────────────
+  const setStageDev = useCallback(
+    (stage: Stage) => {
+      const now = Date.now();
+      // Pick a createdAt that, after reconcileState's stage computation,
+      // resolves to the requested stage so the override persists.
+      let createdAt = now;
+      if (stage === 'baby') {
+        createdAt = now - GAME_CONFIG.EGG_DURATION_MS - 1000;
+      } else if (stage === 'grown') {
+        createdAt = now - GAME_CONFIG.BABY_DURATION_MS - 1000;
+      }
+      const updated: TamagotchiData = {
+        ...stateRef.current,
+        createdAt,
+        stage,
+      };
+      save(reconcileState(updated, now));
+    },
+    [save],
+  );
+
+  const addPoopDev = useCallback(() => {
+    const next = Math.min(
+      stateRef.current.poopCount + 1,
+      GAME_CONFIG.MAX_POOP,
+    );
+    save({ ...stateRef.current, poopCount: next });
+  }, [save]);
+
   const recordBattle = useCallback(
     (result: 'win' | 'loss' | 'npcWin') => {
       const record = { ...stateRef.current.battleRecord };
@@ -176,5 +206,7 @@ export function useTamagotchiState() {
     restart,
     recordBattle,
     isHungry,
+    setStageDev,
+    addPoopDev,
   };
 }

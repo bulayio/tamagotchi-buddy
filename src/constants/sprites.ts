@@ -87,6 +87,20 @@ export const SPRITES: Record<string, Sprite> = {
     [null, null, null, R, R, null, null, null],
     [null, null, null, null, null, null, null, null],
   ],
+  kiBlast: [
+    [null, Y, O, Y, null],
+    [Y, O, W, O, Y],
+    [O, W, W, W, O],
+    [Y, O, W, O, Y],
+    [null, Y, O, Y, null],
+  ],
+  impact: [
+    [Y, null, null, null, Y],
+    [null, O, Y, O, null],
+    [null, Y, W, Y, null],
+    [null, O, Y, O, null],
+    [Y, null, null, null, Y],
+  ],
 };
 
 export const PIXEL_SIZE = 6;

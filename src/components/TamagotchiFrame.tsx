@@ -1,31 +1,18 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useEggMetrics } from '../lib/eggMetrics';
+import {
+  EGG_BASE,
+  EGG_SHADE,
+  SPOT_DARK,
+  SPOT_SOFT,
+  SPOTS,
+} from '../constants/eggTheme';
 
 interface Props {
   children: React.ReactNode;
   controls?: React.ReactNode;
 }
-
-const BASE_COLOR = '#f3e3c3';
-const SHADE_COLOR = '#d9c39a';
-const SPOT_COLOR = '#6b4423';
-const SPOT_SOFT = '#8a5a30';
-
-const SPOTS: Array<{
-  x: number;
-  y: number;
-  size: number;
-  rotate: number;
-  color: 'dark' | 'soft';
-  ratio: number;
-}> = [
-  { x: 12, y: 7, size: 0.18, rotate: -20, color: 'dark', ratio: 0.85 },
-  { x: 82, y: 18, size: 0.13, rotate: -10, color: 'dark', ratio: 0.9 },
-  { x: 6, y: 68, size: 0.2, rotate: -30, color: 'soft', ratio: 0.95 },
-  { x: 78, y: 88, size: 0.22, rotate: -8, color: 'dark', ratio: 0.9 },
-  { x: 30, y: 90, size: 0.11, rotate: 18, color: 'soft', ratio: 1.0 },
-];
 
 export default function TamagotchiFrame({ children, controls }: Props) {
   const { eggWidth, eggHeight, screenWidth, screenHeight } = useEggMetrics();
@@ -60,7 +47,7 @@ export default function TamagotchiFrame({ children, controls }: Props) {
                   width: w,
                   height: h,
                   borderRadius: w / 2,
-                  backgroundColor: s.color === 'dark' ? SPOT_COLOR : SPOT_SOFT,
+                  backgroundColor: s.color === 'dark' ? SPOT_DARK : SPOT_SOFT,
                   opacity: s.color === 'dark' ? 0.78 : 0.55,
                   transform: [{ rotate: `${s.rotate}deg` }],
                 }}
@@ -115,8 +102,8 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   egg: {
-    backgroundColor: BASE_COLOR,
-    borderColor: SHADE_COLOR,
+    backgroundColor: EGG_BASE,
+    borderColor: EGG_SHADE,
     borderWidth: 2,
     alignItems: 'center',
     overflow: 'hidden',
