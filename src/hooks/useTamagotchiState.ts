@@ -153,86 +153,6 @@ export function useTamagotchiState() {
     await save(newState);
   }, [save]);
 
-  /**
-   * Full reset for the gem-cost reroll flow: wipes battle record and every
-   * other piece of state. The pet is reborn with fresh DNA.
-   */
-  const rerollFresh = useCallback(async () => {
-    const now = Date.now();
-    const newState: TamagotchiData = {
-      ...DEFAULT_STATE,
-      lastFeedTime: now,
-      lastCleanTime: now,
-      createdAt: now,
-      isUnlocked: true,
-      dna: generatePetDNA(),
-    };
-    await save(newState);
-  }, [save]);
-
-  // ── Dev / demo helpers ─────────────────────────────────────────────
-  const setStageDev = useCallback(
-    (stage: Stage) => {
-      const now = Date.now();
-      // Pick a createdAt that, after reconcileState's stage computation,
-      // resolves to the requested stage so the override persists.
-      let createdAt = now;
-      if (stage === 'baby') {
-        createdAt = now - GAME_CONFIG.EGG_DURATION_MS - 1000;
-      } else if (stage === 'grown') {
-        createdAt = now - GAME_CONFIG.BABY_DURATION_MS - 1000;
-      }
-      const updated: TamagotchiData = {
-        ...stateRef.current,
-        createdAt,
-        stage,
-      };
-      save(reconcileState(updated, now));
-    },
-    [save],
-  );
-
-  const addPoopDev = useCallback(() => {
-    const next = Math.min(
-      stateRef.current.poopCount + 1,
-      GAME_CONFIG.MAX_POOP,
-    );
-    save({ ...stateRef.current, poopCount: next });
-  }, [save]);
-
-  const triggerHungryDev = useCallback(() => {
-    // Push lastFeedTime back so isHungry crosses its threshold (50% of
-    // HUNGER_SICK_MS) but doesn't auto-promote to sick yet.
-    const now = Date.now();
-    const lastFeedTime = now - Math.floor(GAME_CONFIG.HUNGER_SICK_MS * 0.7);
-    save({ ...stateRef.current, lastFeedTime });
-  }, [save]);
-
-  const triggerSickDev = useCallback(() => {
-    save({
-      ...stateRef.current,
-      isSick: true,
-      sickSince: Date.now(),
-    });
-  }, [save]);
-
-  const triggerDeadDev = useCallback(() => {
-    save({ ...stateRef.current, isDead: true });
-  }, [save]);
-
-  const healDev = useCallback(() => {
-    const now = Date.now();
-    save({
-      ...stateRef.current,
-      lastFeedTime: now,
-      lastCleanTime: now,
-      isSick: false,
-      sickSince: null,
-      isDead: false,
-      poopCount: 0,
-    });
-  }, [save]);
-
   const recordBattle = useCallback(
     (result: 'win' | 'loss' | 'npcWin') => {
       const record = { ...stateRef.current.battleRecord };
@@ -246,6 +166,65 @@ export function useTamagotchiState() {
 
   const isHungry = !state.isDead && Date.now() - state.lastFeedTime > GAME_CONFIG.HUNGER_SICK_MS * 0.5;
 
+  const setStageDev = useCallback(
+    (stage: Stage) => {
+      const now = Date.now();
+      let createdAt = stateRef.current.createdAt;
+      if (stage === 'egg') createdAt = now;
+      else if (stage === 'baby') createdAt = now - GAME_CONFIG.EGG_DURATION_MS;
+      else createdAt = now - GAME_CONFIG.EGG_DURATION_MS - GAME_CONFIG.BABY_DURATION_MS;
+      save(reconcileState({ ...stateRef.current, createdAt }, now));
+    },
+    [save],
+  );
+
+  const addPoopDev = useCallback(() => {
+    const next = Math.min(stateRef.current.poopCount + 1, GAME_CONFIG.MAX_POOP - 1);
+    save({ ...stateRef.current, poopCount: next });
+  }, [save]);
+
+  const triggerHungryDev = useCallback(() => {
+    const now = Date.now();
+    save({
+      ...stateRef.current,
+      lastFeedTime: now - GAME_CONFIG.HUNGER_SICK_MS,
+      isSick: false,
+      sickSince: null,
+    });
+  }, [save]);
+
+  const triggerSickDev = useCallback(() => {
+    const now = Date.now();
+    save({ ...stateRef.current, isSick: true, sickSince: now });
+  }, [save]);
+
+  const triggerDeadDev = useCallback(() => {
+    save({ ...stateRef.current, isDead: true });
+  }, [save]);
+
+  const healDev = useCallback(() => {
+    const now = Date.now();
+    save({
+      ...stateRef.current,
+      isSick: false,
+      sickSince: null,
+      lastFeedTime: now,
+    });
+  }, [save]);
+
+  const rerollFresh = useCallback(async () => {
+    const now = Date.now();
+    await save({
+      ...DEFAULT_STATE,
+      lastFeedTime: now,
+      lastCleanTime: now,
+      createdAt: now,
+      isUnlocked: true,
+      dna: generatePetDNA(),
+      battleRecord: stateRef.current.battleRecord,
+    });
+  }, [save]);
+
   return {
     state,
     isLoaded,
@@ -254,9 +233,9 @@ export function useTamagotchiState() {
     play,
     unlock,
     restart,
-    rerollFresh,
     recordBattle,
     isHungry,
+    rerollFresh,
     setStageDev,
     addPoopDev,
     triggerHungryDev,

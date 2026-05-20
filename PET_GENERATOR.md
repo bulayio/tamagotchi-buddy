@@ -54,8 +54,7 @@ interface PetDNA {
 ```
 
 `TamagotchiData`에 `dna: PetDNA | null` 필드가 추가되었고, AsyncStorage에 함께 저장됩니다.
-기존 저장에 `accessory` 등 옛 필드가 있어도 로드 시 `normalizePetDNA()`가 표준 형태로 맞춥니다.
-기존(레거시) 저장 데이터에 `dna`가 없거나 `genre`가 없으면 앱 로드 시 같은 seed로 재생성합니다.
+`dna`가 없거나 필드가 옛 형식(`accessory` 등)이면 로드 시 `normalizePetDNA()`가 같은 seed로 표준 `PetDNA`로 맞춥니다.
 
 ---
 
@@ -65,7 +64,7 @@ interface PetDNA {
 | -------------------------------------------------------------- | ---------------------------------------------------- |
 | `generatePetDNA()`                                             | 새 랜덤 seed + 장르 무작위(시드에서 결정)로 DNA 생성 |
 | `generatePetDNAWithGenre(g)` / `dnaFromSeedWithGenre(seed, g)` | 플레이오 최빈 장르 등으로 장르 고정 생성             |
-| `normalizePetDNA(dna)`                                         | 레거시 저장용: `genre` 누락 시 같은 seed로 재생성    |
+| `normalizePetDNA(dna)`                                         | 저장 호환: 누락·옛 필드면 같은 seed로 표준 DNA로 정규화 |
 | `dnaFromSeed(seed)`                                            | 주어진 seed로 동일 DNA 재현 (디버깅·공유용)          |
 | `composeSprite(dna, stage, variant)`                           | 12×12 hex-color 2D 배열 반환                         |
 | `composeEggSprite(dna)`                                        | 알 외형 + palette tint                               |

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -43,9 +43,15 @@ import { generatePetDNA, PetDNA } from '../src/lib/petGenerator';
 
 type BattlePhase = 'idle' | 'selecting' | 'playing' | 'done';
 
+function isTruthyBattleParam(b: string | string[] | undefined): boolean {
+  if (b === undefined) return false;
+  const s = Array.isArray(b) ? b[0] : b;
+  return s === '1' || s === 'true';
+}
+
 export default function TamagotchiScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ hatch?: string }>();
+  const params = useLocalSearchParams<{ hatch?: string; battle?: string }>();
   const {
     state,
     isLoaded,
@@ -86,6 +92,7 @@ export default function TamagotchiScreen() {
   const tapsRef = useRef(0);
   const battleStartRef = useRef(0);
   const battleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoPvpFromLinkRef = useRef(false);
 
   const revealOpacity = useSharedValue(isHatching ? 0 : 1);
   const revealScale = useSharedValue(isHatching ? 0.85 : 1);
@@ -231,6 +238,15 @@ export default function TamagotchiScreen() {
     },
     [finishBattle],
   );
+
+  /** 커뮤니티 `/battle` 등: 상대 선택 없이 바로 PvP */
+  useLayoutEffect(() => {
+    if (!isTruthyBattleParam(params.battle)) return;
+    if (!isLoaded || !state.isUnlocked || state.isDead) return;
+    if (autoPvpFromLinkRef.current) return;
+    autoPvpFromLinkRef.current = true;
+    startBattle('pvp');
+  }, [params.battle, isLoaded, state.isUnlocked, state.isDead, startBattle]);
 
   const handleTap = useCallback(() => {
     if (battlePhase !== 'playing') return;
