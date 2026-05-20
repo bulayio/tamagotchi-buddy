@@ -95,7 +95,6 @@ export default function DnaDemoScreen() {
           <DnaRow k="bodyShape" v={selected.bodyShape} />
           <DnaRow k="eyes" v={selected.eyes} />
           <DnaRow k="mouth" v={selected.mouth} />
-          <DnaRow k="accessory" v={selected.accessory} />
           <DnaRow k="palette" v={selected.palette} />
           <Text style={styles.dnaHint}>
             같은 seed로 호출하면 항상 같은 캐릭터가 나옵니다 (결정론적 생성).

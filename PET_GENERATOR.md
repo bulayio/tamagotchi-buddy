@@ -8,7 +8,7 @@
 
 ## 1. 개요
 
-- **방식**: 파츠 조합형 (body / eyes / mouth / accessory / palette)
+- **방식**: 파츠 조합형 (body / eyes / mouth / palette) + 장르 고정 **모자**
 - **다양성**: 장르당 **고정 실루엣**(퍼즐=네모·시뮬=동그라미·액션/슈팅=키 큼·RPG=뭉툭) + 장르 전용 색·파츠 풀 + 성체·알에 장르별 도트 무늬
 - **결정론성**: 같은 `seed` 문자열이면 항상 같은 캐릭터가 나옴 (PRNG 기반)
 - **정체성**: 유저 한 명당 1마리 고유. `unlock()` 시 자동 생성, `restart()` 시 새 캐릭터
@@ -24,7 +24,7 @@ src/
 │   ├── seededRandom.ts        # FNV-1a 해시 + mulberry32 PRNG
 │   └── petGenerator.ts        # generatePetDNA / dnaFromSeed / composeSprite
 ├── constants/
-│   ├── petParts.ts            # body·eye·mouth·accessory·palette 카탈로그
+│   ├── petParts.ts            # body·eye·mouth·palette + 장비(모자) 토큰
 │   ├── sprites.ts             # 공용 sprite (dead / poop / skull / food)
 │   └── config.ts              # TamagotchiData.dna 필드 추가
 └── components/
@@ -41,45 +41,47 @@ app/
 ## 3. 데이터 모델
 
 ```ts
-type GameGenre = 'puzzle' | 'simulation' | 'action' | 'rpg' | 'shooting';
+type GameGenre = "puzzle" | "simulation" | "action" | "rpg" | "shooting";
 
 interface PetDNA {
-  seed: string;              // 결정론적 PRNG 입력
-  genre: GameGenre;        // 선호 게임 장르(플레이오 연동 예정; 현재는 시드로 무작위)
-  bodyShape: 'round' | 'tall' | 'blob' | 'square';
-  eyes: 'dot' | 'oval' | 'sleepy' | 'sparkle' | 'cross';
-  mouth: 'smile' | 'dot' | 'fang' | 'wavy';
-  accessory: 'none' | 'horn' | 'antenna' | 'leaf' | 'hat';
-  palette: 'yellow' | 'mint' | 'sky' | 'pink' | 'lilac' | 'peach';
+  seed: string; // 결정론적 PRNG 입력
+  genre: GameGenre; // 선호 게임 장르(플레이오 연동 예정; 현재는 시드로 무작위)
+  bodyShape: "round" | "tall" | "blob" | "square";
+  eyes: "dot" | "oval" | "sleepy" | "sparkle" | "cross";
+  mouth: "smile" | "dot" | "fang" | "wavy";
+  palette: "yellow" | "mint" | "sky" | "pink" | "lilac" | "peach";
 }
 ```
 
 `TamagotchiData`에 `dna: PetDNA | null` 필드가 추가되었고, AsyncStorage에 함께 저장됩니다.
-기존(레거시) 저장 데이터에 `dna`가 없거나 `genre`가 없으면 앱 로드 시 `normalizePetDNA()`로 한 번 보정합니다.
+기존 저장에 `accessory` 등 옛 필드가 있어도 로드 시 `normalizePetDNA()`가 표준 형태로 맞춥니다.
+기존(레거시) 저장 데이터에 `dna`가 없거나 `genre`가 없으면 앱 로드 시 같은 seed로 재생성합니다.
 
 ---
 
 ## 4. 핵심 API (`src/lib/petGenerator.ts`)
 
-| 함수 | 설명 |
-| --- | --- |
-| `generatePetDNA()` | 새 랜덤 seed + 장르 무작위(시드에서 결정)로 DNA 생성 |
-| `generatePetDNAWithGenre(g)` / `dnaFromSeedWithGenre(seed, g)` | 플레이오 최빈 장르 등으로 장르 고정 생성 |
-| `normalizePetDNA(dna)` | 레거시 저장용: `genre` 누락 시 같은 seed로 재생성 |
-| `dnaFromSeed(seed)` | 주어진 seed로 동일 DNA 재현 (디버깅·공유용) |
-| `composeSprite(dna, stage, variant)` | 12×12 hex-color 2D 배열 반환 |
-| `composeEggSprite(dna)` | 알 외형 + palette tint |
-| `spriteForStage(dna, stage, variant)` | stage·variant에 맞는 sprite 한 번에 반환 |
+| 함수                                                           | 설명                                                 |
+| -------------------------------------------------------------- | ---------------------------------------------------- |
+| `generatePetDNA()`                                             | 새 랜덤 seed + 장르 무작위(시드에서 결정)로 DNA 생성 |
+| `generatePetDNAWithGenre(g)` / `dnaFromSeedWithGenre(seed, g)` | 플레이오 최빈 장르 등으로 장르 고정 생성             |
+| `normalizePetDNA(dna)`                                         | 레거시 저장용: `genre` 누락 시 같은 seed로 재생성    |
+| `dnaFromSeed(seed)`                                            | 주어진 seed로 동일 DNA 재현 (디버깅·공유용)          |
+| `composeSprite(dna, stage, variant)`                           | 12×12 hex-color 2D 배열 반환                         |
+| `composeEggSprite(dna)`                                        | 알 외형 + palette tint                               |
+| `spriteForStage(dna, stage, variant)`                          | stage·variant에 맞는 sprite 한 번에 반환             |
 
 ### 합성 파이프라인
+
 1. `BODY_SHAPES[bodyShape][stage]` 실루엣을 토큰 배열로 가져옴 (`baby` / `grown`은 팔·다리 있는 캐릭터 실루엣)
-3. `EYE_PATCHES[eyes]`를 좌·우 위치에 스탬프 (오른쪽은 자동 미러)
-4. `MOUTH_PATCHES[mouth]` 스탬프
-5. 볼(cheek) 픽셀 도트 찍기 (sick일 때는 생략)
-6. **`baby` 또는 `grown`** 이면 장르 고정 **모자** 스탬프(머리 `accessoryAnchor`): 퍼즐=마법사 모자, 시뮬레이션=셰프 모자, 액션=투구, RPG=광부 헬멧, 슈팅=군모 (`DNA.accessory` 필드는 레거시이며 스프라이트에 쓰이지 않음)
-7. variant 오버라이드: `sick`이면 눈=cross / 입=wavy, `happy`이면 눈=sparkle / 입=smile
+2. `EYE_PATCHES[eyes]`를 좌·우 위치에 스탬프 (오른쪽은 자동 미러)
+3. `MOUTH_PATCHES[mouth]` 스탬프
+4. 볼(cheek) 픽셀 도트 찍기 (sick일 때는 생략)
+5. **`baby` 또는 `grown`** 이고 sick가 아니면 장르 고정 **모자** 스탬프(머리 `hatAnchor`): 퍼즐=마법사 모자, 시뮬레이션=셰프 모자, 액션=투구, RPG=광부 헬멧, 슈팅=군모
+6. variant 오버라이드: `sick`이면 눈=cross / 입=wavy, `happy`이면 눈=sparkle / 입=smile
 
 ### 결정론 PRNG (`seededRandom.ts`)
+
 - `hashString(s)` — FNV-1a 32-bit
 - `mulberry32(seed)` — 외부 의존성 0줄, 균등 분포 충분
 - 같은 seed → 같은 PRNG 시퀀스 → 같은 DNA
@@ -91,12 +93,14 @@ interface PetDNA {
 **진입 경로**: 커뮤니티 화면(`/`) → "🧬 펫 DNA 생성기 데모" 버튼
 
 ### 화면 구성
+
 1. **3×3 그리드** — 9마리의 랜덤 grown 캐릭터. 각 셀에 seed 표기
 2. **🎲 새로 9마리 뽑기** 버튼 — 메모리상으로만 다시 생성 (게임 상태 영향 없음)
 3. **선택한 캐릭터의 변화** — 탭한 캐릭터의 [EGG / BABY / GROWN / HAPPY / SICK] 5가지 변형
-4. **DNA 카드** — seed + 5개 파츠 값 텍스트 표시
+4. **DNA 카드** — seed + genre·body·eyes·mouth·palette 텍스트 표시
 
 ### 시연 시나리오
+
 - 시연자는 "🎲 새로 9마리 뽑기"를 반복해서 **매번 다른 캐릭터**가 나오는 것을 보여줌
 - 특정 캐릭터를 탭해서 같은 DNA가 egg → baby → grown으로 **자연스럽게 자라는 모습**을 보여줌
 - 표정 변화(HAPPY/SICK)는 같은 DNA에서 표정만 바뀌어 **일관된 정체성**을 유지한다는 점을 강조
@@ -105,14 +109,13 @@ interface PetDNA {
 
 ## 6. 다양성 추정
 
-| 카테고리 | 종류 |
-| --- | --- |
-| body shape | 4 (round / tall / blob / square) |
-| eyes | 5 (dot / oval / sleepy / sparkle / cross) |
-| mouth | 4 (smile / dot / fang / wavy) |
-| accessory | 5 (none / horn / antenna / leaf / hat) |
-| palette | 6 (yellow / mint / sky / pink / lilac / peach) |
-| **총 조합** | **2,400** |
+| 카테고리    | 종류                                           |
+| ----------- | ---------------------------------------------- |
+| body shape  | 4 (round / tall / blob / square)               |
+| eyes        | 5 (dot / oval / sleepy / sparkle / cross)      |
+| mouth       | 4 (smile / dot / fang / wavy)                  |
+| palette     | 6 (yellow / mint / sky / pink / lilac / peach) |
+| **총 조합 (대략)** | **약 62** (장르가 팔레트·실루엣·눈·입 풀을 묶음; `GENRE_*` 기준) |
 
 해커톤 시연으로 충분한 다양성이며, 추후 파츠 추가만으로 손쉽게 확장 가능합니다.
 
@@ -120,12 +123,12 @@ interface PetDNA {
 
 ## 7. 게임 상태 연동
 
-| 시점 | 동작 |
-| --- | --- |
-| `unlock()` (BUDDY 입력 후) | `generatePetDNA()` 호출 → AsyncStorage 저장 |
-| 앱 재시작 | 저장된 seed/DNA로 **항상 같은 캐릭터** 표시 |
-| `restart()` (사망 후 다시 시작) | 새 DNA 생성, battleRecord는 유지 |
-| 레거시 저장 (`dna` 필드 없음) | 로드 시 1회 자동 생성·재저장 |
+| 시점                            | 동작                                        |
+| ------------------------------- | ------------------------------------------- |
+| `unlock()` (BUDDY 입력 후)      | `generatePetDNA()` 호출 → AsyncStorage 저장 |
+| 앱 재시작                       | 저장된 seed/DNA로 **항상 같은 캐릭터** 표시 |
+| `restart()` (사망 후 다시 시작) | 새 DNA 생성, battleRecord는 유지            |
+| 레거시 저장 (`dna` 필드 없음)   | 로드 시 1회 자동 생성·재저장                |
 
 ---
 
