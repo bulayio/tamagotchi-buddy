@@ -90,7 +90,18 @@ export default function TamagotchiScreen() {
       </View>
 
       <View style={styles.content}>
-        <TamagotchiFrame>
+        <TamagotchiFrame
+          controls={
+            !state.isDead ? (
+              <ActionButtons
+                onFeed={handleFeed}
+                onClean={handleClean}
+                onPlay={handlePlay}
+                disabled={state.isDead || isFeeding || isCleaning}
+              />
+            ) : null
+          }
+        >
           <View style={styles.screenContent}>
             <PixelCharacter
               stage={state.stage}
@@ -125,21 +136,13 @@ export default function TamagotchiScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <>
-            <ActionButtons
-              onFeed={handleFeed}
-              onClean={handleClean}
-              onPlay={handlePlay}
-              disabled={state.isDead || isFeeding || isCleaning}
-            />
-            <TouchableOpacity
-              style={[styles.battleBtn, state.isDead && styles.battleBtnDisabled]}
-              onPress={handleBattle}
-              disabled={state.isDead}
-            >
-              <Text style={styles.battleBtnText}>⚔️ 대결하기</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            style={[styles.battleBtn, state.isDead && styles.battleBtnDisabled]}
+            onPress={handleBattle}
+            disabled={state.isDead}
+          >
+            <Text style={styles.battleBtnText}>⚔️ 대결하기</Text>
+          </TouchableOpacity>
         )}
       </View>
     </SafeAreaView>
@@ -149,16 +152,16 @@ export default function TamagotchiScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#ffffff',
   },
   loading: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   loadingText: {
-    color: '#fff',
+    color: '#1a1a2e',
     fontSize: 16,
   },
   header: {
@@ -175,18 +178,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerTitle: {
-    color: '#fff',
+    color: '#1a1a2e',
     fontSize: 18,
     fontWeight: '800',
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
+    alignItems: 'center',
+    gap: 12,
   },
   screenContent: {
+    flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 200,
   },
   deathActions: {
     alignItems: 'center',

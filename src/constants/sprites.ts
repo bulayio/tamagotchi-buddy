@@ -9,6 +9,8 @@ const W = '#ffffff'; // white
 const Y = '#f0d060'; // yellow (used by food)
 const R = '#ff4444'; // red
 const BR = '#8b6914'; // brown
+const P = '#ff8fb1'; // pink (cake decoration)
+const O = '#ff9933'; // orange (flame)
 
 export const SPRITES: Record<string, Sprite> = {
   dead: [
@@ -54,6 +56,36 @@ export const SPRITES: Record<string, Sprite> = {
     [BR, Y, Y, Y, Y, BR],
     [BR, BR, BR, BR, BR, BR],
     [null, BR, BR, BR, BR, null],
+  ],
+  cake: [
+    [null, null, null, O, null, null, null, null],
+    [null, null, null, O, null, null, null, null],
+    [null, null, null, W, null, null, null, null],
+    [null, W, W, W, W, W, W, null],
+    [W, P, W, W, P, W, P, W],
+    [Y, Y, Y, Y, Y, Y, Y, Y],
+    [Y, BR, Y, Y, BR, Y, Y, Y],
+    [Y, Y, Y, Y, Y, Y, Y, Y],
+  ],
+  broom: [
+    [null, null, null, null, null, null, BR, null],
+    [null, null, null, null, null, BR, BR, null],
+    [null, null, null, null, BR, BR, null, null],
+    [null, null, null, BR, BR, null, null, null],
+    [null, null, C, C, C, C, null, null],
+    [null, Y, Y, Y, Y, Y, Y, null],
+    [Y, Y, Y, Y, Y, Y, Y, Y],
+    [Y, null, Y, Y, Y, Y, null, Y],
+  ],
+  heart: [
+    [null, R, R, null, null, R, R, null],
+    [R, R, R, R, R, R, R, R],
+    [R, R, R, R, R, R, R, R],
+    [R, R, R, R, R, R, R, R],
+    [null, R, R, R, R, R, R, null],
+    [null, null, R, R, R, R, null, null],
+    [null, null, null, R, R, null, null, null],
+    [null, null, null, null, null, null, null, null],
   ],
 };
 
