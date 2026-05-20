@@ -11,28 +11,44 @@ import { useRouter } from 'expo-router';
 import PixelSprite from '../src/components/PixelSprite';
 import {
   PetDNA,
-  generatePetDNA,
+  dnaFromComposite,
   spriteForStage,
   GAME_GENRE_LABELS,
 } from '../src/lib/petGenerator';
+import { randomSeed } from '../src/lib/seededRandom';
 import { Stage } from '../src/constants/config';
 
 const GRID_SIZE = 9;
 
-function makeBatch(): PetDNA[] {
-  return Array.from({ length: GRID_SIZE }, () => generatePetDNA());
+function makeBatch(activityScore: number, gameplayTimeMinutes: number): PetDNA[] {
+  return Array.from({ length: GRID_SIZE }, () =>
+    dnaFromComposite(randomSeed(), activityScore, gameplayTimeMinutes),
+  );
+}
+
+function formatPlayTimeMinutes(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 60) return `${m}분`;
+  const h = m / 60;
+  if (h < 24) return `${h.toFixed(1)}시간`;
+  const d = Math.floor(h / 24);
+  const rh = h - d * 24;
+  return `${d}일 ${rh.toFixed(1)}시간`;
 }
 
 export default function DnaDemoScreen() {
   const router = useRouter();
-  const [batch, setBatch] = useState<PetDNA[]>(() => makeBatch());
-  const [selected, setSelected] = useState<PetDNA>(batch[0]);
+  const [activityScore, setActivityScore] = useState(55);
+  const [gameplayMinutes, setGameplayMinutes] = useState(180);
+  const [batch, setBatch] = useState<PetDNA[]>(() => makeBatch(55, 180));
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const selected = batch[selectedIndex] ?? batch[0];
 
   const reroll = useCallback(() => {
-    const next = makeBatch();
+    const next = makeBatch(activityScore, gameplayMinutes);
     setBatch(next);
-    setSelected(next[0]);
-  }, []);
+    setSelectedIndex(0);
+  }, [activityScore, gameplayMinutes]);
 
   const variantSpecs: { label: string; stage: Stage; variant: 'sick' | 'happy' | null }[] = [
     { label: 'EGG',   stage: 'egg',   variant: null },
@@ -54,25 +70,78 @@ export default function DnaDemoScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.subtitle}>
-          버튼을 눌러 새 캐릭터 9마리를 즉석에서 생성합니다. 마음에 드는 캐릭터를 탭하면 아래에서
-          성장 단계와 표정 변화를 볼 수 있어요.
+          프로토타입:{' '}
+          <Text style={styles.subtitleEm}>활동점수</Text>와{' '}
+          <Text style={styles.subtitleEm}>게임플레이 시간</Text>을 비롯한 신호를 하나의 시드에
+          합성해 외형을 결정합니다. 같은 숫자 조합이면 같은 패턴이 재현되는 결정론적 생성이에요.
         </Text>
 
+        <View style={styles.signalCard}>
+          <Text style={styles.signalTitle}>입력 신호</Text>
+
+          <View style={styles.signalRow}>
+            <Text style={styles.signalLabel}>활동점수</Text>
+            <Text style={styles.signalValue}>{activityScore}</Text>
+            <Text style={styles.signalUnit}> / 100</Text>
+            <View style={styles.signalSpacer} />
+            <TouchableOpacity
+              style={styles.stepBtn}
+              onPress={() => setActivityScore((v) => Math.max(0, v - 5))}
+              hitSlop={8}
+            >
+              <Text style={styles.stepBtnText}>−</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.stepBtn}
+              onPress={() => setActivityScore((v) => Math.min(100, v + 5))}
+              hitSlop={8}
+            >
+              <Text style={styles.stepBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.signalRow}>
+            <Text style={styles.signalLabel}>게임플레이 시간</Text>
+            <Text style={styles.signalValue}>{formatPlayTimeMinutes(gameplayMinutes)}</Text>
+            <View style={styles.signalSpacer} />
+            <TouchableOpacity
+              style={styles.stepBtn}
+              onPress={() => setGameplayMinutes((v) => Math.max(0, v - 30))}
+              hitSlop={8}
+            >
+              <Text style={styles.stepBtnText}>−</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.stepBtn}
+              onPress={() => setGameplayMinutes((v) => Math.min(10080, v + 30))}
+              hitSlop={8}
+            >
+              <Text style={styles.stepBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.signalHint}>
+            (± 는 30분 단위 · 최대 약 7일)
+          </Text>
+        </View>
+
         <TouchableOpacity style={styles.rerollBtn} onPress={reroll}>
-          <Text style={styles.rerollBtnText}>🎲 새로 9마리 뽑기</Text>
+          <Text style={styles.rerollBtnText}>🎲 프로필 반영 · 9마리 다시 뽑기</Text>
         </TouchableOpacity>
 
         <View style={styles.grid}>
-          {batch.map((dna) => {
-            const isSelected = dna.seed === selected.seed;
+          {batch.map((dna, i) => {
+            const isSelected = i === selectedIndex;
             return (
               <TouchableOpacity
-                key={`${dna.seed}-${dna.genre}`}
+                key={`${dna.seed}-${i}-${dna.genre}`}
                 style={[styles.cell, isSelected && styles.cellSelected]}
-                onPress={() => setSelected(dna)}
+                onPress={() => setSelectedIndex(i)}
               >
                 <PixelSprite sprite={spriteForStage(dna, 'grown', null)} scale={1.6} />
-                <Text style={styles.cellSeed}>{dna.seed}</Text>
+                <Text style={styles.cellSeed} numberOfLines={1}>
+                  {dna.seed}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -89,15 +158,25 @@ export default function DnaDemoScreen() {
         </View>
 
         <View style={styles.dnaCard}>
-          <Text style={styles.dnaTitle}>DNA</Text>
-          <DnaRow k="genre" v={GAME_GENRE_LABELS[selected.genre]} />
-          <DnaRow k="seed" v={selected.seed} />
+          <Text style={styles.dnaTitle}>DNA (합성 결과)</Text>
+          <DnaRow k="장르" v={GAME_GENRE_LABELS[selected.genre]} />
+          <DnaRow k="활동점수" v={`${selected.activityScore ?? '—'} (0–100)`} />
+          <DnaRow
+            k="게임플레이 시간"
+            v={
+              selected.gameplayTimeMinutes != null
+                ? `${formatPlayTimeMinutes(selected.gameplayTimeMinutes)} · ${selected.gameplayTimeMinutes}분`
+                : '—'
+            }
+          />
+          <DnaRow k="base 시드" v={selected.seed} />
           <DnaRow k="bodyShape" v={selected.bodyShape} />
           <DnaRow k="eyes" v={selected.eyes} />
           <DnaRow k="mouth" v={selected.mouth} />
           <DnaRow k="palette" v={selected.palette} />
           <Text style={styles.dnaHint}>
-            같은 seed로 호출하면 항상 같은 캐릭터가 나옵니다 (결정론적 생성).
+            baseSeed + 활동점수 + 플레이시간(분)이 내부적으로 합쳐져 최종 외형을 고릅니다. 실서비스
+            연동 시 같은 방식으로 지표를 추가할 수 있어요.
           </Text>
         </View>
       </ScrollView>
@@ -109,7 +188,9 @@ function DnaRow({ k, v }: { k: string; v: string }) {
   return (
     <View style={styles.dnaRow}>
       <Text style={styles.dnaKey}>{k}</Text>
-      <Text style={styles.dnaVal}>{v}</Text>
+      <Text style={styles.dnaVal} numberOfLines={2}>
+        {v}
+      </Text>
     </View>
   );
 }
@@ -127,7 +208,42 @@ const styles = StyleSheet.create({
   },
   backBtn: { color: '#4488ff', fontSize: 15, fontWeight: '600' },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  subtitle: { color: '#aaa', fontSize: 13, lineHeight: 20, marginBottom: 16 },
+  subtitle: { color: '#aaa', fontSize: 13, lineHeight: 20, marginBottom: 14 },
+  subtitleEm: { color: '#e0e8ff', fontWeight: '700' },
+  signalCard: {
+    backgroundColor: '#252547',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#3d3d6b',
+  },
+  signalTitle: {
+    color: '#ffcc00',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 12,
+    letterSpacing: 0.6,
+  },
+  signalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  signalLabel: { color: '#bbb', fontSize: 14, fontWeight: '600', width: 108 },
+  signalValue: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  signalUnit: { color: '#888', fontSize: 13, marginLeft: 2 },
+  signalSpacer: { flex: 1 },
+  stepBtn: {
+    minWidth: 40,
+    paddingVertical: 8,
+    marginLeft: 8,
+    borderRadius: 8,
+    backgroundColor: '#3d4a7a',
+    alignItems: 'center',
+  },
+  stepBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  signalHint: { color: '#666', fontSize: 11, marginTop: 4 },
   rerollBtn: {
     backgroundColor: '#4488ff',
     borderRadius: 14,
@@ -199,8 +315,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 4,
+    gap: 8,
   },
-  dnaKey: { color: '#888', fontSize: 13, fontFamily: 'monospace' },
-  dnaVal: { color: '#fff', fontSize: 13, fontFamily: 'monospace', fontWeight: '700' },
+  dnaKey: {
+    color: '#888',
+    fontSize: 13,
+    fontFamily: 'monospace',
+    flexShrink: 0,
+  },
+  dnaVal: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'right',
+  },
   dnaHint: { color: '#666', fontSize: 11, marginTop: 10, lineHeight: 16 },
 });

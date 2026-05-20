@@ -44,6 +44,13 @@ export interface PetDNA {
   eyes: EyeStyle;
   mouth: MouthStyle;
   palette: PaletteName;
+  /**
+   * 프로토타입/연동용: 활동·플레이타임을 DNA 생성에 합성할 때만 설정.
+   * 실제 저장 DNA에는 보통 없음.
+   */
+  activityScore?: number;
+  /** 누적 플레이(분). 표시는 화면에서 시간/분으로 가공 */
+  gameplayTimeMinutes?: number;
 }
 
 /** 장르당 하나의 실루엣 — 실루엣만 봐도 장르가 구분되게 */
@@ -163,6 +170,27 @@ export function dnaFromSeedWithGenre(seed: string, genre: GameGenre): PetDNA {
     palette,
     eyes: pick(rng, face.eyes),
     mouth: pick(rng, face.mouth),
+  };
+}
+
+/**
+ * 활동점수·게임플레이 시간을 base 시드에 합성해 최종 DNA를 만든다.
+ * 데모에서 “여러 신호를 종합해 캐릭터가 결정된다”는 인상을 줌 (결정론적).
+ */
+export function dnaFromComposite(
+  baseSeed: string,
+  activityScore: number,
+  gameplayTimeMinutes: number,
+): PetDNA {
+  const a = Math.max(0, Math.min(100, Math.round(activityScore)));
+  const t = Math.max(0, Math.round(gameplayTimeMinutes));
+  const compositeKey = `${baseSeed}\0act:${a}\0playMin:${t}`;
+  const dna = dnaFromSeed(compositeKey);
+  return {
+    ...dna,
+    seed: baseSeed,
+    activityScore: a,
+    gameplayTimeMinutes: t,
   };
 }
 
@@ -395,35 +423,113 @@ function mirrorEyePatch(p: EyeToken[][]): EyeToken[][] {
   return p.map((row) => row.slice().reverse());
 }
 
+/** 모자 패치 세로 칸 수(모든 장르 동일) */
+const GEAR_HAT_PATCH_ROWS = 3;
+
+function padCanvasTop(grid: PixelGrid, n: number): PixelGrid {
+  if (n <= 0) return grid;
+  const w = grid[0]?.length ?? 0;
+  const prefix = Array.from({ length: n }, () =>
+    Array<string | null>(w).fill(null),
+  );
+  return [...prefix, ...grid];
+}
+
+/**
+ * 머리 윗줄 위 빈 행 + 모자 마지막 줄이 머리 첫 줄과 1칸 겹쳐 “얹힌” 느낌
+ * (패딩만 모자 높이만큼 두면 윤곽선이 맞닿아 떠 보일 수 있음)
+ */
+const SPRITE_TOP_PAD_ROWS = GEAR_HAT_PATCH_ROWS - 1;
+/** 모자 하단이 머리 도트와 겹치는 행 수 — 테두리만 맞닿는 공간 감소 */
+const HAT_HEAD_OVERLAP_ROWS = 1;
+
+function hatStackOriginY(face: FacePositions, stackPad: number): number {
+  return (
+    stackPad +
+    face.hatAnchorY -
+    GEAR_HAT_PATCH_ROWS +
+    HAT_HEAD_OVERLAP_ROWS
+  );
+}
+
+/** 모자 아래 깔기 — 몸/머리 윤곽이 모자 null 슬롯으로 비치지 않게 함 */
+const GEAR_HAT_BACKDROP_BY_GENRE: Record<GameGenre, AccToken[][]> = {
+  puzzle: [
+    ["O", "O", "O", "O", "O"],
+    ["O", "B", "B", "B", "O"],
+    ["B", "B", "B", "B", "B"],
+  ],
+  rpg: [
+    ["O", "O", "O", "O", "O"],
+    ["O", "B", "B", "B", "O"],
+    ["B", "B", "B", "B", "B"],
+  ],
+  action: [
+    ["O", "O", "O", "O", "O"],
+    ["O", "B", "B", "B", "O"],
+    ["B", "B", "B", "B", "B"],
+  ],
+  simulation: [
+    ["O", "O", "O", "O", "O"],
+    ["O", "B", "B", "B", "O"],
+    ["B", "B", "B", "B", "B"],
+  ],
+  shooting: [
+    ["O", "O", "O", "O", "O"],
+    ["O", "B", "B", "B", "O"],
+    ["B", "B", "B", "B", "B"],
+  ],
+};
+
 /** 장르별 모자 (머리 hatAnchor 기준). 퍼즐=마법사, RPG=광부, 액션=투구, 시뮬=셰프, 슈팅=군모 */
 const GEAR_HAT_BY_GENRE: Record<GameGenre, AccToken[][]> = {
   puzzle: [
     [null, null, "O", null, null],
     [null, "O", "A", "O", null],
-    ["O", "O", "B", "O", "O"],
+    ["B", "O", "B", "O", "B"],
   ],
   rpg: [
     [null, "O", "O", "O", null],
     ["O", "A", "A", "A", "O"],
-    ["O", "B", "B", "B", "O"],
+    ["B", "B", "B", "B", "B"],
   ],
   action: [
     ["O", "O", "O", "O", "O"],
     ["O", "A", null, "A", "O"],
-    ["O", "B", "B", "B", "O"],
+    ["B", "B", "B", "B", "B"],
   ],
   simulation: [
     ["O", "O", "O", "O", "O"],
     ["B", "B", "B", "B", "B"],
-    [null, "O", "O", "O", null],
+    [null, "B", "O", "B", null],
   ],
   /** 패트롤캡 느낌: 평평한 정상 + 챙(A 군장 스트라이프) */
   shooting: [
     [null, "O", "O", "O", null],
     ["O", "B", "B", "B", "O"],
-    ["O", "A", "D", "A", "O"],
+    ["B", "A", "D", "A", "B"],
   ],
 };
+
+function shouldShowHat(stage: BodyStage, variant: SpriteVariant): boolean {
+  return (stage === "grown" || stage === "baby") && variant !== "sick";
+}
+
+function stampGenreHatBackdrop(
+  canvas: PixelGrid,
+  dna: PetDNA,
+  palette: Palette,
+  face: FacePositions,
+  stage: BodyStage,
+  variant: SpriteVariant,
+  stackPad: number,
+): void {
+  if (!shouldShowHat(stage, variant)) return;
+  const acc = (t: AccToken) => gearTokenToColor(t, palette);
+  const ox = face.hatAnchorX - 1;
+  const oy = hatStackOriginY(face, stackPad);
+  stamp(canvas, GEAR_HAT_BACKDROP_BY_GENRE[dna.genre], oy, ox, acc);
+}
 
 function stampGenreGear(
   canvas: PixelGrid,
@@ -432,12 +538,13 @@ function stampGenreGear(
   face: FacePositions,
   stage: BodyStage,
   variant: SpriteVariant,
+  stackPad: number,
 ): void {
-  if ((stage !== "grown" && stage !== "baby") || variant === "sick") return;
+  if (!shouldShowHat(stage, variant)) return;
   const acc = (t: AccToken) => gearTokenToColor(t, palette);
   /* 기존 뿔/모자 앵커는 폭 4 기준 — 장르 모자는 폭 5, 왼쪽으로 1칸 당겨 가운데 맞춤 */
   const ox = face.hatAnchorX - 1;
-  const oy = face.hatAnchorY;
+  const oy = hatStackOriginY(face, stackPad);
   stamp(canvas, GEAR_HAT_BY_GENRE[dna.genre], oy, ox, acc);
 }
 
@@ -486,8 +593,12 @@ export function composeSprite(
 ): PixelGrid {
   const palette = PALETTES[dna.palette];
   const silhouette = cloneTokenGrid(BODY_SHAPES[dna.bodyShape][stage]);
-  const canvas: PixelGrid = renderBody(silhouette, palette);
+  const stackPad = shouldShowHat(stage, variant) ? SPRITE_TOP_PAD_ROWS : 0;
+  const canvas: PixelGrid = padCanvasTop(renderBody(silhouette, palette), stackPad);
   const face = FACE_BY_SHAPE[dna.bodyShape][stage];
+  const dy = stackPad;
+
+  stampGenreHatBackdrop(canvas, dna, palette, face, stage, variant, dy);
 
   // Variant-driven eye/mouth override
   const effectiveEyes: EyeStyle =
@@ -497,35 +608,36 @@ export function composeSprite(
 
   // Eyes (mirror right eye for symmetry)
   const eyePatch = EYE_PATCHES[effectiveEyes];
-  stamp(canvas, eyePatch, face.eyeY, face.leftEyeX, (t) =>
+  stamp(canvas, eyePatch, face.eyeY + dy, face.leftEyeX, (t) =>
     eyeTokenToColor(t, palette),
   );
-  stamp(canvas, mirrorEyePatch(eyePatch), face.eyeY, face.rightEyeX, (t) =>
+  stamp(canvas, mirrorEyePatch(eyePatch), face.eyeY + dy, face.rightEyeX, (t) =>
     eyeTokenToColor(t, palette),
   );
 
   // Mouth
-  stamp(canvas, MOUTH_PATCHES[effectiveMouth], face.mouthY, face.mouthX, (t) =>
+  stamp(canvas, MOUTH_PATCHES[effectiveMouth], face.mouthY + dy, face.mouthX, (t) =>
     mouthTokenToColor(t, palette),
   );
 
   // Cheeks (single pixel each) – skip for sick to look paler
   if (variant !== "sick") {
+    const cheekY = face.cheekY + dy;
     if (
-      canvas[face.cheekY]?.[face.leftCheekX] !== undefined &&
-      canvas[face.cheekY][face.leftCheekX] !== null
+      canvas[cheekY]?.[face.leftCheekX] !== undefined &&
+      canvas[cheekY][face.leftCheekX] !== null
     ) {
-      canvas[face.cheekY][face.leftCheekX] = palette.cheek;
+      canvas[cheekY][face.leftCheekX] = palette.cheek;
     }
     if (
-      canvas[face.cheekY]?.[face.rightCheekX] !== undefined &&
-      canvas[face.cheekY][face.rightCheekX] !== null
+      canvas[cheekY]?.[face.rightCheekX] !== undefined &&
+      canvas[cheekY][face.rightCheekX] !== null
     ) {
-      canvas[face.cheekY][face.rightCheekX] = palette.cheek;
+      canvas[cheekY][face.rightCheekX] = palette.cheek;
     }
   }
 
-  stampGenreGear(canvas, dna, palette, face, stage, variant);
+  stampGenreGear(canvas, dna, palette, face, stage, variant, dy);
 
   return canvas;
 }
