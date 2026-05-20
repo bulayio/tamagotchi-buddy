@@ -14,6 +14,7 @@ import BuddyEntryPostScreen from "../../src/components/BuddyEntryPostScreen";
 import {
   COMMUNITY_FEED_POSTS,
   GENERIC_POST_FULL_BODY,
+  POST_COMMENTS,
   type CommunityFeedItem,
 } from "../../src/constants/communityFeed";
 
@@ -95,6 +96,46 @@ function GenericCommunityPost({ post }: { post: CommunityFeedItem }) {
         <View style={styles.hexTag}>
           <Text style={styles.hexTagText}>{post.postTag}</Text>
         </View>
+
+        {POST_COMMENTS[post.id]?.length ? (
+          <>
+            <View style={styles.commentsDivider} />
+            <Text style={styles.commentsHeading}>댓글</Text>
+            {POST_COMMENTS[post.id]!.map((c) => (
+              <View key={c.id} style={styles.commentCard}>
+                <View style={styles.commentTopRow}>
+                  <View style={styles.commentAvatar}>
+                    {c.avatarImage ? (
+                      <Image
+                        source={c.avatarImage}
+                        style={styles.commentAvatarImg}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={styles.commentAvatarEmoji}>
+                        {c.avatarEmoji ?? "👤"}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.commentMetaCol}>
+                    <Text style={styles.commentLevel}>{c.authorLevel}</Text>
+                    <Text style={styles.commentAuthor}>{c.authorName}</Text>
+                  </View>
+                  <TouchableOpacity hitSlop={12} style={styles.commentMore}>
+                    <Text style={styles.commentMoreDots}>⋮</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.commentBody}>{c.body}</Text>
+                <View style={styles.commentFooter}>
+                  <Text style={styles.commentFooterMuted}>👍 {c.likes}</Text>
+                  <Text style={styles.commentReply}>답글쓰기</Text>
+                  <View style={{ flex: 1 }} />
+                  <Text style={styles.commentFooterMuted}>{c.timeAgo}</Text>
+                </View>
+              </View>
+            ))}
+          </>
+        ) : null}
 
         <View style={styles.bottomPad} />
       </ScrollView>
@@ -220,6 +261,72 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   hexTagText: { color: "#BE185D", fontSize: 13, fontWeight: "700" },
+  commentsDivider: {
+    height: 1,
+    backgroundColor: BORDER,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  commentsHeading: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: TEXT,
+    marginBottom: 14,
+  },
+  commentCard: {
+    marginBottom: 20,
+    paddingBottom: 4,
+  },
+  commentTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: SURFACE,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  commentAvatarImg: { width: 40, height: 40 },
+  commentAvatarEmoji: { fontSize: 22 },
+  commentMetaCol: { flex: 1 },
+  commentLevel: {
+    fontSize: 12,
+    color: "#9B8FC9",
+    marginBottom: 2,
+  },
+  commentAuthor: { fontSize: 15, fontWeight: "700", color: TEXT },
+  commentMore: { padding: 4, marginTop: -4 },
+  commentMoreDots: {
+    fontSize: 18,
+    color: SUB,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  commentBody: {
+    fontSize: 15,
+    color: TEXT,
+    lineHeight: 22,
+    marginBottom: 12,
+    paddingLeft: 50,
+  },
+  commentFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 50,
+    gap: 14,
+  },
+  commentFooterMuted: { fontSize: 13, color: SUB },
+  commentReply: {
+    fontSize: 13,
+    color: SUB,
+    fontWeight: "600",
+  },
   bottomPad: { height: 24 },
   missing: { flex: 1, padding: 24 },
   missingText: { marginTop: 24, color: SUB, fontSize: 16 },

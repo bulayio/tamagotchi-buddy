@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -15,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { SECRET_COMMAND, HINTS } from "../constants/config";
+import { POST_COMMENTS } from "../constants/communityFeed";
 
 const UNLOCK_KEY = "@tamagotchi_state";
 
@@ -24,6 +26,7 @@ const SURFACE = "#F3F4F6";
 const TEXT = "#111827";
 const SUB = "#6B7280";
 const BORDER = "#E5E7EB";
+const CHEONGI_LEVEL = "#9B8FC9";
 
 const POST_TITLE = "내 힌트는 앞에 B라고 하는데";
 const POST_BODY =
@@ -153,7 +156,7 @@ export default function BuddyEntryPostScreen() {
 
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.outlineBtn} activeOpacity={0.85}>
-              <Text style={styles.outlineBtnText}>💬 8</Text>
+              <Text style={styles.outlineBtnText}>💬 9</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.outlineBtn} activeOpacity={0.85}>
               <Text style={styles.outlineBtnText}>👍 5</Text>
@@ -161,6 +164,40 @@ export default function BuddyEntryPostScreen() {
           </View>
 
           <View style={styles.divider} />
+
+          {(POST_COMMENTS.buddy ?? []).map((c) => (
+            <View key={c.id} style={styles.commentBlock}>
+              <View style={styles.commentTop}>
+                <View style={styles.cAvatarImgWrap}>
+                  {c.avatarImage ? (
+                    <Image
+                      source={c.avatarImage}
+                      style={styles.cAvatarImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text style={styles.cAvatarText}>
+                      {(c.avatarEmoji ?? "?").slice(0, 1)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.commentMeta}>
+                  <Text style={styles.cheongiLevel}>{c.authorLevel}</Text>
+                  <Text style={styles.authorName}>{c.authorName}</Text>
+                </View>
+                <TouchableOpacity style={styles.moreBtn} hitSlop={12}>
+                  <Text style={styles.moreDots}>⋮</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.commentBody}>{c.body}</Text>
+              <View style={styles.commentFooterRow}>
+                <Text style={styles.commentFooterMuted}>👍 {c.likes}</Text>
+                <Text style={styles.commentReply}>답글쓰기</Text>
+                <View style={{ flex: 1 }} />
+                <Text style={styles.commentFooterMuted}>{c.timeAgo}</Text>
+              </View>
+            </View>
+          ))}
 
           {COMMENTS.map((c) => (
             <View key={c.id} style={styles.commentBlock}>
@@ -187,7 +224,7 @@ export default function BuddyEntryPostScreen() {
               </View>
               <View style={styles.commentMeta}>
                 <Text style={styles.authorLevel}>플레이어 Lv.1</Text>
-                <Text style={styles.authorName}>히든</Text>
+                <Text style={styles.authorName}>해히든</Text>
               </View>
             </View>
             <View style={styles.composerInner}>
@@ -196,7 +233,7 @@ export default function BuddyEntryPostScreen() {
                   style={styles.commentInput}
                   value={input}
                   onChangeText={setInput}
-                  placeholder="댓글처럼 히든을 입력하세요…"
+                  placeholder="댓글처럼 해히든을 입력하세요…"
                   placeholderTextColor="#9CA3AF"
                   autoCapitalize="characters"
                   returnKeyType="send"
@@ -212,7 +249,7 @@ export default function BuddyEntryPostScreen() {
               </View>
               {showError ? (
                 <Text style={styles.composerError}>
-                  잘못된 히든이에요. 힌트를 확인해 주세요.
+                  잘못된 해히든이에요. 힌트를 확인해 주세요.
                 </Text>
               ) : null}
             </View>
@@ -362,10 +399,43 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
+  cAvatarImgWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: SURFACE,
+    marginRight: 12,
+  },
+  cAvatarImg: {
+    width: 40,
+    height: 40,
+  },
   cAvatarText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
+  },
+  cheongiLevel: {
+    fontSize: 12,
+    color: CHEONGI_LEVEL,
+    marginBottom: 2,
+  },
+  commentFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 52,
+    marginTop: 10,
+    gap: 14,
+  },
+  commentFooterMuted: {
+    fontSize: 13,
+    color: SUB,
+  },
+  commentReply: {
+    fontSize: 13,
+    color: SUB,
+    fontWeight: "600",
   },
   commentMeta: { flex: 1 },
   commentBody: {
