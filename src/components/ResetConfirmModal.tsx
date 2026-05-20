@@ -5,13 +5,18 @@ interface Props {
   visible: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  gems: number;
+  cost: number;
 }
 
 export default function ResetConfirmModal({
   visible,
   onCancel,
   onConfirm,
+  gems,
+  cost,
 }: Props) {
+  const insufficient = gems < cost;
   return (
     <Modal
       visible={visible}
@@ -24,9 +29,18 @@ export default function ResetConfirmModal({
           <Text style={styles.title}>다시 뽑기</Text>
           <View style={styles.body}>
             <Text style={styles.message}>
-              <Text style={styles.gem}>💎 1000</Text>을 쓰고 다시 뽑으시겠습니까?
+              <Text style={styles.gem}>💎 {cost}</Text>을 쓰고 다시 뽑으시겠습니까?
             </Text>
             <Text style={styles.warn}>이전 캐릭터는 삭제됩니다.</Text>
+            <Text
+              style={[
+                styles.balance,
+                insufficient && styles.balanceInsufficient,
+              ]}
+            >
+              보유 💎 {gems.toLocaleString()}
+              {insufficient ? '  (부족)' : ''}
+            </Text>
           </View>
 
           <View style={styles.actions}>
@@ -39,8 +53,13 @@ export default function ResetConfirmModal({
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.8}
-              style={[styles.btn, styles.confirmBtn]}
+              style={[
+                styles.btn,
+                styles.confirmBtn,
+                insufficient && styles.confirmBtnDisabled,
+              ]}
               onPress={onConfirm}
+              disabled={insufficient}
             >
               <Text style={styles.confirmText}>확인</Text>
             </TouchableOpacity>
@@ -98,6 +117,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888',
     textAlign: 'center',
+  },
+  balance: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '700',
+  },
+  balanceInsufficient: {
+    color: '#a82240',
+  },
+  confirmBtnDisabled: {
+    opacity: 0.4,
   },
   actions: {
     flexDirection: 'row',

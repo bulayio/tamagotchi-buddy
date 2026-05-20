@@ -86,9 +86,9 @@ export default function ActionButtons({
   );
 }
 
-const BTN_SIZE = 64;
-const BTN_INNER = 54;
-const ICON_PADDING = 8;
+const BTN_SIZE = 54;
+const BTN_INNER = 44;
+const ICON_PADDING = 6;
 const ICON_SCALE = (BTN_INNER - ICON_PADDING * 2) / (8 * 6);
 
 const ACCENT = '#ff5577';
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   wrap: {
     width: '100%',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   row: {
     flexDirection: 'row',
@@ -143,17 +143,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  // 4th TAP button (only visible during battle)
+  // 4th TAP button (only visible during battle). Sits well inside the egg
+  // silhouette — the bottom curve is aggressive so we keep this narrower than
+  // the 3-button row above.
   tapBtn: {
-    width: '92%',
+    width: '62%',
     backgroundColor: ACCENT,
     borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 8,
     borderWidth: 2,
     borderColor: ACCENT_DARK,
     shadowColor: '#000',
@@ -164,7 +166,7 @@ const styles = StyleSheet.create({
   },
   tapLabel: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 17,
     fontWeight: '900',
     letterSpacing: 2,
     textShadowColor: 'rgba(0,0,0,0.35)',
@@ -173,15 +175,15 @@ const styles = StyleSheet.create({
   },
   tapBadge: {
     backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
     borderRadius: 999,
-    minWidth: 40,
+    minWidth: 32,
     alignItems: 'center',
   },
   tapBadgeText: {
     color: ACCENT_DARK,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '900',
   },
 });

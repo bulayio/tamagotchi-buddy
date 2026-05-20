@@ -11,9 +11,12 @@ import {
 
 interface Props {
   onReset: () => void;
+  gems: number;
+  cost: number;
 }
 
-export default function DeviceBackFace({ onReset }: Props) {
+export default function DeviceBackFace({ onReset, gems, cost }: Props) {
+  const insufficient = gems < cost;
   const { eggWidth, eggHeight } = useEggMetrics();
 
   const eggStyle = {
@@ -71,17 +74,25 @@ export default function DeviceBackFace({ onReset }: Props) {
           {/* Reset button cluster */}
           <View style={styles.centered} pointerEvents="box-none">
             <Text style={styles.label}>RESET DEVICE</Text>
+            <View style={styles.balance}>
+              <Text style={styles.balanceText}>보유 💎 {gems.toLocaleString()}</Text>
+            </View>
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={onReset}
-              style={styles.resetBtn}
+              disabled={insufficient}
+              style={[styles.resetBtn, insufficient && styles.resetBtnDisabled]}
             >
               <Text style={styles.resetText}>🔄 다시 뽑기</Text>
               <View style={styles.cost}>
-                <Text style={styles.costText}>💎 1000</Text>
+                <Text style={styles.costText}>💎 {cost}</Text>
               </View>
             </TouchableOpacity>
-            <Text style={styles.warn}>이전 캐릭터는 삭제됩니다</Text>
+            <Text style={styles.warn}>
+              {insufficient
+                ? '젬이 부족합니다'
+                : '이전 캐릭터는 삭제됩니다'}
+            </Text>
           </View>
         </View>
       </View>
@@ -121,6 +132,17 @@ const styles = StyleSheet.create({
     color: '#5a3b2a',
     letterSpacing: 3,
   },
+  balance: {
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  balanceText: {
+    color: '#3b2557',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   resetBtn: {
     backgroundColor: '#a82240',
     paddingHorizontal: 20,
@@ -134,6 +156,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
+  },
+  resetBtnDisabled: {
+    opacity: 0.4,
   },
   resetText: {
     color: '#fff',

@@ -9,7 +9,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import PixelSprite from './PixelSprite';
-import { SPRITES } from '../constants/sprites';
+import { SPRITES, PIXEL_SIZE } from '../constants/sprites';
+import { useEggMetrics } from '../lib/eggMetrics';
 
 interface Props {
   poopCount: number;
@@ -26,18 +27,24 @@ export default function StatusIndicators({
   isDead,
   isCleaning,
 }: Props) {
+  const { screenWidth } = useEggMetrics();
+  // Target indicator width ≈ 16% of LCD width — scales with the device.
+  const targetW = screenWidth * 0.16;
+  const skullScale = targetW / (8 * PIXEL_SIZE); // skull is 8 cols wide
+  const foodScale = targetW / (6 * PIXEL_SIZE); // food is 6 cols wide
+
   if (isDead) return null;
 
   return (
     <View style={styles.container}>
       {isSick && (
         <View style={styles.indicator}>
-          <PixelSprite sprite={SPRITES.skull} scale={2} />
+          <PixelSprite sprite={SPRITES.skull} scale={skullScale} />
         </View>
       )}
       {isHungry && !isSick && (
         <View style={styles.indicator}>
-          <PixelSprite sprite={SPRITES.food} scale={2} />
+          <PixelSprite sprite={SPRITES.food} scale={foodScale} />
         </View>
       )}
       <View style={styles.poopColLeft}>
@@ -104,8 +111,8 @@ const styles = StyleSheet.create({
   },
   indicator: {
     position: 'absolute',
-    top: 8,
-    right: 16,
+    top: 4,
+    right: 6,
   },
   poopColLeft: {
     position: 'absolute',

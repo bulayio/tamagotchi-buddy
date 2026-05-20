@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   controlsSlot: {
-    marginTop: 18,
+    marginTop: 10,
     width: '100%',
     alignItems: 'center',
   },

@@ -121,15 +121,19 @@ export default function BattleHud({
   // Position rails: chars near each LCD edge with a generous center gap
   const playerX = screenWidth * 0.06;
   const opponentX = screenWidth * 0.94 - charSize;
-  const battleY = screenHeight * 0.22;
 
   // kiBlast pixel sprite: 5 cols at PIXEL_SIZE × blastScale
   const blastScale = 1.0;
   const blastWidth = 5 * PIXEL_SIZE * blastScale;
+  const blastHeight = 5 * PIXEL_SIZE * blastScale;
   // Travel from the player's right edge to the opponent's left edge
   const blastStartX = playerX + charSize;
   const blastEndX = opponentX - blastWidth;
-  const blastY = battleY + charSize * 0.35;
+  // Vertical offsets are measured from the scene's vertical midpoint
+  // (top: '50%' + this marginTop) so the layout adapts to whatever height
+  // RN actually gives the scene.
+  const charCenterOffset = -charSize / 2;
+  const blastCenterOffset = -blastHeight / 2 + charSize * 0.08;
 
   return (
     <View style={styles.wrap}>
@@ -148,12 +152,14 @@ export default function BattleHud({
 
       {/* Battle scene */}
       <View style={styles.scene}>
-        {/* Player on left */}
+        {/* Player on left — top:'50%' + negative marginTop centers it within
+            the scene's actual rendered height. */}
         <View
           style={{
             position: 'absolute',
             left: playerX,
-            top: battleY,
+            top: '50%',
+            marginTop: charCenterOffset,
           }}
         >
           <PixelSprite sprite={playerSprite} scale={charScale} />
@@ -165,7 +171,8 @@ export default function BattleHud({
             {
               position: 'absolute',
               left: opponentX,
-              top: battleY,
+              top: '50%',
+              marginTop: charCenterOffset,
               transform: [{ scaleX: -1 }],
             },
             flinchStyle,
@@ -180,7 +187,7 @@ export default function BattleHud({
             key={b.id}
             startX={blastStartX}
             endX={blastEndX}
-            y={blastY}
+            centerOffset={blastCenterOffset}
             scale={blastScale}
           />
         ))}
@@ -218,12 +225,13 @@ export default function BattleHud({
 function EnergyBlast({
   startX,
   endX,
-  y,
+  centerOffset,
   scale,
 }: {
   startX: number;
   endX: number;
-  y: number;
+  /** Vertical offset from the scene's midpoint (used as marginTop with top:'50%'). */
+  centerOffset: number;
   scale: number;
 }) {
   // Travel target is clamped so the blast always heads toward the opponent
@@ -255,7 +263,8 @@ function EnergyBlast({
       style={[
         {
           position: 'absolute',
-          top: y,
+          top: '50%',
+          marginTop: centerOffset,
           left: 0,
         },
         animStyle,

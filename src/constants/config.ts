@@ -46,7 +46,17 @@ export interface TamagotchiData {
   isUnlocked: boolean;
   battleRecord: { wins: number; losses: number; npcWins: number };
   dna: PetDNA | null; // null until first unlock; legacy saves get migrated on load
+  gems: number;
+  poopCleansToday: number;
+  lastPoopCleanDayKey: string; // YYYY-MM-DD; resets the daily counter at midnight
 }
+
+export const ECONOMY = {
+  REROLL_COST: 1000,
+  POOP_REWARD_GEMS: 100,
+  POOP_REWARD_AFTER_CLEANS: 2, // 3rd clean and beyond rolls for reward
+  POOP_REWARD_CHANCE: 0.3,
+} as const;
 
 export const DEFAULT_STATE: TamagotchiData = {
   lastFeedTime: Date.now(),
@@ -60,4 +70,7 @@ export const DEFAULT_STATE: TamagotchiData = {
   isUnlocked: false,
   battleRecord: { wins: 0, losses: 0, npcWins: 0 },
   dna: null,
+  gems: 1000,
+  poopCleansToday: 0,
+  lastPoopCleanDayKey: '',
 };

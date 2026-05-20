@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   GAME_CONFIG,
   DEFAULT_STATE,
+  ECONOMY,
   TamagotchiData,
   Stage,
 } from '../constants/config';
@@ -73,13 +74,16 @@ export function useTamagotchiState() {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed: TamagotchiData = JSON.parse(raw);
-        // Migrate legacy saves that predate the dna field.
+        // Migrate legacy saves that predate newer fields.
         if (parsed.isUnlocked && parsed.dna) {
           parsed.dna = normalizePetDNA(parsed.dna);
         }
         if (parsed.isUnlocked && !parsed.dna) {
           parsed.dna = generatePetDNA();
         }
+        if (typeof parsed.gems !== 'number') parsed.gems = 1000;
+        if (typeof parsed.poopCleansToday !== 'number') parsed.poopCleansToday = 0;
+        if (typeof parsed.lastPoopCleanDayKey !== 'string') parsed.lastPoopCleanDayKey = '';
         const reconciled = reconcileState(parsed, Date.now());
         setState(reconciled);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(reconciled));
@@ -114,10 +118,47 @@ export function useTamagotchiState() {
     save(reconcileState(updated, now));
   }, [save]);
 
-  const clean = useCallback(() => {
+  /**
+   * Clean wipes poop, increments today's clean counter, and on the 4th+ clean
+   * of the day rolls a 30% chance for a 100-gem reward.
+   * Returns the reward amount (0 if none) so the caller can show a modal.
+   */
+  const clean = useCallback((): number => {
     const now = Date.now();
-    const updated = { ...stateRef.current, lastCleanTime: now, poopCount: 0 };
-    save(reconcileState(updated, now));
+    const prev = stateRef.current;
+    const hadPoop = prev.poopCount > 0;
+
+    // Compute today's day key (local midnight, YYYY-MM-DD)
+    const d = new Date(now);
+    const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    let cleansToday = prev.lastPoopCleanDayKey === dayKey ? prev.poopCleansToday : 0;
+    let reward = 0;
+    if (hadPoop) {
+      cleansToday += 1;
+      // 4th and subsequent cleans of the day each roll 30% for +100 gems.
+      if (
+        cleansToday > ECONOMY.POOP_REWARD_AFTER_CLEANS &&
+        Math.random() < ECONOMY.POOP_REWARD_CHANCE
+      ) {
+        reward = ECONOMY.POOP_REWARD_GEMS;
+      }
+    }
+
+    save(
+      reconcileState(
+        {
+          ...prev,
+          lastCleanTime: now,
+          poopCount: 0,
+          poopCleansToday: cleansToday,
+          lastPoopCleanDayKey: dayKey,
+          gems: prev.gems + reward,
+        },
+        now,
+      ),
+    );
+    return reward;
   }, [save]);
 
   const play = useCallback(() => {
@@ -212,7 +253,14 @@ export function useTamagotchiState() {
     });
   }, [save]);
 
-  const rerollFresh = useCallback(async () => {
+  /**
+   * Spend gems to roll a brand-new buddy. Battle record is reset along with
+   * everything else (this is the user's signal that the previous run is over).
+   * Returns true on success, false if the player lacks the gem balance.
+   */
+  const rerollFresh = useCallback(async (): Promise<boolean> => {
+    const prev = stateRef.current;
+    if (prev.gems < ECONOMY.REROLL_COST) return false;
     const now = Date.now();
     await save({
       ...DEFAULT_STATE,
@@ -221,8 +269,9 @@ export function useTamagotchiState() {
       createdAt: now,
       isUnlocked: true,
       dna: generatePetDNA(),
-      battleRecord: stateRef.current.battleRecord,
+      gems: prev.gems - ECONOMY.REROLL_COST,
     });
+    return true;
   }, [save]);
 
   return {
