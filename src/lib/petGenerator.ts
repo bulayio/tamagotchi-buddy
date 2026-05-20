@@ -1,20 +1,15 @@
 import {
-  ACCESSORY_KEYS,
-  ACCESSORY_PATCHES,
+  AccToken,
   Accessory,
   BODY_SHAPES,
-  BODY_SHAPE_KEYS,
   BodyShape,
-  EYE_KEYS,
   EYE_PATCHES,
   EyeStyle,
   EyeToken,
-  MOUTH_KEYS,
   MOUTH_PATCHES,
   MouthStyle,
   MouthToken,
   PALETTES,
-  PALETTE_KEYS,
   Palette,
   PaletteName,
   PixelGrid,
@@ -24,29 +19,152 @@ import {
 import { Stage } from '../constants/config';
 import { hashString, mulberry32, pick, randomSeed } from './seededRandom';
 
+/** 플레이오 선호 장르(1차). 추후 앱 연동 시 최빈 장르로 주입 가능. */
+export const GAME_GENRES = [
+  'puzzle',
+  'simulation',
+  'action',
+  'rpg',
+  'shooting',
+] as const;
+export type GameGenre = (typeof GAME_GENRES)[number];
+
+export const GAME_GENRE_LABELS: Record<GameGenre, string> = {
+  puzzle: '퍼즐',
+  simulation: '시뮬레이션',
+  action: '액션',
+  rpg: 'RPG',
+  shooting: '슈팅',
+};
+
 export interface PetDNA {
   seed: string;
+  /** 펫 생성 시 부가정보(선호 장르). 시뮬에서는 시드로 무작위 배정. */
+  genre: GameGenre;
   bodyShape: BodyShape;
   eyes: EyeStyle;
   mouth: MouthStyle;
+  /** 레거시 필드. 성체 스프라이트는 장르 장비만 사용. */
   accessory: Accessory;
   palette: PaletteName;
 }
 
+/** 장르당 하나의 실루엣 — 실루엣만 봐도 장르가 구분되게 */
+const GENRE_BODY: Record<GameGenre, BodyShape> = {
+  puzzle: 'square',
+  simulation: 'round',
+  action: 'tall',
+  rpg: 'blob',
+  /** 액션과 같은 키 큰 실루엣 — 투구 vs 군모로 구분 */
+  shooting: 'tall',
+};
+
+/** 장르별 색 범위 (서로 겹치지 않게 그룹화) */
+const GENRE_PALETTE_POOL: Record<GameGenre, readonly PaletteName[]> = {
+  puzzle: ['sky', 'mint'],
+  simulation: ['peach', 'yellow'],
+  action: ['pink', 'yellow'],
+  rpg: ['lilac', 'mint'],
+  shooting: ['mint', 'sky'],
+};
+
+/** 눈·입만 시드로 가변 (장착 파츠는 장르 고정 장비로 처리). */
+const GENRE_FACE_POOLS: Record<
+  GameGenre,
+  {
+    eyes: readonly EyeStyle[];
+    mouth: readonly MouthStyle[];
+  }
+> = {
+  puzzle: {
+    eyes: ['dot', 'sleepy'],
+    mouth: ['smile', 'dot'],
+  },
+  simulation: {
+    eyes: ['sleepy', 'dot', 'oval'],
+    mouth: ['smile', 'dot', 'wavy'],
+  },
+  action: {
+    eyes: ['oval', 'sparkle', 'dot'],
+    mouth: ['fang', 'smile'],
+  },
+  rpg: {
+    eyes: ['oval', 'sparkle', 'dot'],
+    mouth: ['smile', 'fang'],
+  },
+  shooting: {
+    eyes: ['dot', 'oval', 'sparkle'],
+    mouth: ['smile', 'dot'],
+  },
+};
+
+function isGameGenre(v: unknown): v is GameGenre {
+  return typeof v === 'string' && (GAME_GENRES as readonly string[]).includes(v);
+}
+
+function genrePaletteSet(genre: GameGenre): readonly PaletteName[] {
+  return GENRE_PALETTE_POOL[genre];
+}
+
+function isCompletePetDNA(dna: Partial<PetDNA>): dna is PetDNA {
+  return (
+    isGameGenre(dna.genre) &&
+    dna.bodyShape === GENRE_BODY[dna.genre] &&
+    !!dna.eyes &&
+    !!dna.mouth &&
+    dna.accessory !== undefined &&
+    !!dna.palette &&
+    genrePaletteSet(dna.genre).includes(dna.palette as PaletteName) &&
+    typeof dna.seed === 'string'
+  );
+}
+
+/** 저장된 DNA에 genre·필드가 없으면 같은 seed로 새 규칙 재생성(1회 마이그레이션). */
+export function normalizePetDNA(dna: Partial<PetDNA> & { seed: string }): PetDNA {
+  if (isCompletePetDNA(dna)) return dna;
+  return dnaFromSeed(dna.seed);
+}
+
 export function dnaFromSeed(seed: string): PetDNA {
   const rng = mulberry32(hashString(seed));
+  const genre = pick(rng, GAME_GENRES);
+  const bodyShape = GENRE_BODY[genre];
+  const palette = pick(rng, GENRE_PALETTE_POOL[genre]);
+  const face = GENRE_FACE_POOLS[genre];
   return {
     seed,
-    bodyShape: pick(rng, BODY_SHAPE_KEYS),
-    eyes: pick(rng, EYE_KEYS),
-    mouth: pick(rng, MOUTH_KEYS),
-    accessory: pick(rng, ACCESSORY_KEYS),
-    palette: pick(rng, PALETTE_KEYS),
+    genre,
+    bodyShape,
+    palette,
+    eyes: pick(rng, face.eyes),
+    mouth: pick(rng, face.mouth),
+    accessory: 'none',
+  };
+}
+
+/** 플레이오 등에서 선호 장르가 정해진 경우: 해당 장르 파츠 풀만 사용해 생성. */
+export function dnaFromSeedWithGenre(seed: string, genre: GameGenre): PetDNA {
+  const rng = mulberry32(hashString(seed));
+  const bodyShape = GENRE_BODY[genre];
+  const palette = pick(rng, GENRE_PALETTE_POOL[genre]);
+  const face = GENRE_FACE_POOLS[genre];
+  return {
+    seed,
+    genre,
+    bodyShape,
+    palette,
+    eyes: pick(rng, face.eyes),
+    mouth: pick(rng, face.mouth),
+    accessory: 'none',
   };
 }
 
 export function generatePetDNA(): PetDNA {
   return dnaFromSeed(randomSeed());
+}
+
+export function generatePetDNAWithGenre(genre: GameGenre): PetDNA {
+  return dnaFromSeedWithGenre(randomSeed(), genre);
 }
 
 export type SpriteVariant = 'sick' | 'happy' | null;
@@ -90,6 +208,18 @@ function accTokenToColor(t: Token | 'A', p: Palette): string | null | undefined 
     case 'D': return p.bodyDark;
     case 'C': return p.cheek;
     case 'A': return p.accent;
+  }
+}
+
+/** 장비 전용 — 몸 색과 겹쳐도 잘 보이게 윤곽·액센트·하이라이트 대비 강화 */
+function gearTokenToColor(t: AccToken, p: Palette): string | null | undefined {
+  switch (t) {
+    case null: return undefined;
+    case 'O': return p.outline;
+    case 'B': return p.accent;
+    case 'D': return p.bodyDark;
+    case 'C': return p.accent;
+    case 'A': return WHITE;
   }
 }
 
@@ -157,6 +287,86 @@ function mirrorEyePatch(p: EyeToken[][]): EyeToken[][] {
   return p.map(row => row.slice().reverse());
 }
 
+/** 장르별 모자 (머리 accessoryAnchor 기준). 퍼즐=마법사, RPG=광부, 액션=투구, 시뮬=셰프, 슈팅=군모 */
+const GEAR_HAT_BY_GENRE: Record<GameGenre, AccToken[][]> = {
+  puzzle: [
+    [null, null, 'O', null, null],
+    [null, 'O', 'A', 'O', null],
+    ['O', 'O', 'B', 'O', 'O'],
+  ],
+  rpg: [
+    [null, 'O', 'O', 'O', null],
+    ['O', 'A', 'A', 'A', 'O'],
+    ['O', 'B', 'B', 'B', 'O'],
+  ],
+  action: [
+    ['O', 'O', 'O', 'O', 'O'],
+    ['O', 'A', null, 'A', 'O'],
+    ['O', 'B', 'B', 'B', 'O'],
+  ],
+  simulation: [
+    ['O', 'O', 'O', 'O', 'O'],
+    ['B', 'B', 'B', 'B', 'B'],
+    [null, 'O', 'O', 'O', null],
+  ],
+  /** 패트롤캡 느낌: 평평한 정상 + 챙(A 군장 스트라이프) */
+  shooting: [
+    [null, 'O', 'O', 'O', null],
+    ['O', 'B', 'B', 'B', 'O'],
+    ['O', 'A', 'D', 'A', 'O'],
+  ],
+};
+
+function stampGenreGear(
+  canvas: PixelGrid,
+  dna: PetDNA,
+  palette: Palette,
+  face: FacePositions,
+  stage: BodyStage,
+  variant: SpriteVariant,
+): void {
+  if ((stage !== 'grown' && stage !== 'baby') || variant === 'sick') return;
+  const acc = (t: AccToken) => gearTokenToColor(t, palette);
+  /* 기존 뿔/모자 앵커는 폭 4 기준 — 장르 모자는 폭 5, 왼쪽으로 1칸 당겨 가운데 맞춤 */
+  const ox = face.accessoryAnchorX - 1;
+  const oy = face.accessoryAnchorY;
+  stamp(canvas, GEAR_HAT_BY_GENRE[dna.genre], oy, ox, acc);
+}
+
+function applyEggGenrePattern(grid: PixelGrid, genre: GameGenre, p: Palette): void {
+  const spot = (r: number, c: number) => {
+    const v = grid[r]?.[c];
+    if (v === p.body || v === p.bodyDark) grid[r][c] = p.accent;
+  };
+  switch (genre) {
+    case 'puzzle':
+      spot(4, 5);
+      spot(4, 6);
+      spot(5, 5);
+      spot(5, 6);
+      break;
+    case 'simulation':
+      spot(3, 5);
+      spot(6, 6);
+      break;
+    case 'action':
+      spot(4, 7);
+      spot(5, 6);
+      spot(6, 7);
+      break;
+    case 'rpg':
+      spot(3, 6);
+      spot(6, 5);
+      spot(7, 6);
+      break;
+    case 'shooting':
+      spot(4, 4);
+      spot(4, 7);
+      spot(6, 5);
+      break;
+  }
+}
+
 export function composeSprite(dna: PetDNA, stage: BodyStage, variant: SpriteVariant): PixelGrid {
   const palette = PALETTES[dna.palette];
   const silhouette = cloneTokenGrid(BODY_SHAPES[dna.bodyShape][stage]);
@@ -191,16 +401,8 @@ export function composeSprite(dna: PetDNA, stage: BodyStage, variant: SpriteVari
     }
   }
 
-  // Accessory only on grown silhouette (baby keeps a simple look)
-  if (stage === 'grown' && dna.accessory !== 'none') {
-    stamp(
-      canvas,
-      ACCESSORY_PATCHES[dna.accessory],
-      face.accessoryAnchorY,
-      face.accessoryAnchorX,
-      t => accTokenToColor(t, palette),
-    );
-  }
+  // 성체: 장르 고정 장비만 장착 (DNA accessory 미사용)
+  stampGenreGear(canvas, dna, palette, face, stage, variant);
 
   return canvas;
 }
@@ -211,7 +413,7 @@ export function composeEggSprite(dna: PetDNA): PixelGrid {
   const O = palette.outline;
   const B = palette.body;
   const D = palette.bodyDark;
-  return [
+  const grid: PixelGrid = [
     [null, null, null, null, O, O, O, O, null, null, null, null],
     [null, null, null, O, B, B, B, B, O, null, null, null],
     [null, null, O, B, B, B, D, B, B, O, null, null],
@@ -225,6 +427,8 @@ export function composeEggSprite(dna: PetDNA): PixelGrid {
     [null, null, null, null, O, O, O, O, null, null, null, null],
     [null, null, null, null, null, null, null, null, null, null, null, null],
   ];
+  applyEggGenrePattern(grid, dna.genre, palette);
+  return grid;
 }
 
 export function spriteForStage(dna: PetDNA, stage: Stage, variant: SpriteVariant): PixelGrid {

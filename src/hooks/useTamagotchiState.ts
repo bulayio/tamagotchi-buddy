@@ -7,7 +7,7 @@ import {
   TamagotchiData,
   Stage,
 } from '../constants/config';
-import { generatePetDNA } from '../lib/petGenerator';
+import { generatePetDNA, normalizePetDNA } from '../lib/petGenerator';
 
 const STORAGE_KEY = '@tamagotchi_state';
 
@@ -74,6 +74,9 @@ export function useTamagotchiState() {
       if (raw) {
         const parsed: TamagotchiData = JSON.parse(raw);
         // Migrate legacy saves that predate the dna field.
+        if (parsed.isUnlocked && parsed.dna) {
+          parsed.dna = normalizePetDNA(parsed.dna);
+        }
         if (parsed.isUnlocked && !parsed.dna) {
           parsed.dna = generatePetDNA();
         }

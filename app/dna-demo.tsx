@@ -13,6 +13,7 @@ import {
   PetDNA,
   generatePetDNA,
   spriteForStage,
+  GAME_GENRE_LABELS,
 } from '../src/lib/petGenerator';
 import { Stage } from '../src/constants/config';
 
@@ -66,7 +67,7 @@ export default function DnaDemoScreen() {
             const isSelected = dna.seed === selected.seed;
             return (
               <TouchableOpacity
-                key={dna.seed}
+                key={`${dna.seed}-${dna.genre}`}
                 style={[styles.cell, isSelected && styles.cellSelected]}
                 onPress={() => setSelected(dna)}
               >
@@ -89,6 +90,7 @@ export default function DnaDemoScreen() {
 
         <View style={styles.dnaCard}>
           <Text style={styles.dnaTitle}>DNA</Text>
+          <DnaRow k="genre" v={GAME_GENRE_LABELS[selected.genre]} />
           <DnaRow k="seed" v={selected.seed} />
           <DnaRow k="bodyShape" v={selected.bodyShape} />
           <DnaRow k="eyes" v={selected.eyes} />

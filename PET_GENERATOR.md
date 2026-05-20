@@ -9,7 +9,7 @@
 ## 1. 개요
 
 - **방식**: 파츠 조합형 (body / eyes / mouth / accessory / palette)
-- **다양성**: `4 × 5 × 4 × 5 × 6 = 2,400`가지 조합
+- **다양성**: 장르당 **고정 실루엣**(퍼즐=네모·시뮬=동그라미·액션/슈팅=키 큼·RPG=뭉툭) + 장르 전용 색·파츠 풀 + 성체·알에 장르별 도트 무늬
 - **결정론성**: 같은 `seed` 문자열이면 항상 같은 캐릭터가 나옴 (PRNG 기반)
 - **정체성**: 유저 한 명당 1마리 고유. `unlock()` 시 자동 생성, `restart()` 시 새 캐릭터
 - **상태 분리**: 데모 페이지는 AsyncStorage를 건드리지 않고 메모리에서만 캐릭터 시연
@@ -41,8 +41,11 @@ app/
 ## 3. 데이터 모델
 
 ```ts
+type GameGenre = 'puzzle' | 'simulation' | 'action' | 'rpg' | 'shooting';
+
 interface PetDNA {
   seed: string;              // 결정론적 PRNG 입력
+  genre: GameGenre;        // 선호 게임 장르(플레이오 연동 예정; 현재는 시드로 무작위)
   bodyShape: 'round' | 'tall' | 'blob' | 'square';
   eyes: 'dot' | 'oval' | 'sleepy' | 'sparkle' | 'cross';
   mouth: 'smile' | 'dot' | 'fang' | 'wavy';
@@ -52,7 +55,7 @@ interface PetDNA {
 ```
 
 `TamagotchiData`에 `dna: PetDNA | null` 필드가 추가되었고, AsyncStorage에 함께 저장됩니다.
-기존(레거시) 저장 데이터에 `dna`가 없으면 앱 로드 시 자동으로 한 번 생성·저장합니다.
+기존(레거시) 저장 데이터에 `dna`가 없거나 `genre`가 없으면 앱 로드 시 `normalizePetDNA()`로 한 번 보정합니다.
 
 ---
 
@@ -60,19 +63,20 @@ interface PetDNA {
 
 | 함수 | 설명 |
 | --- | --- |
-| `generatePetDNA()` | 새 랜덤 seed로 DNA 생성 |
+| `generatePetDNA()` | 새 랜덤 seed + 장르 무작위(시드에서 결정)로 DNA 생성 |
+| `generatePetDNAWithGenre(g)` / `dnaFromSeedWithGenre(seed, g)` | 플레이오 최빈 장르 등으로 장르 고정 생성 |
+| `normalizePetDNA(dna)` | 레거시 저장용: `genre` 누락 시 같은 seed로 재생성 |
 | `dnaFromSeed(seed)` | 주어진 seed로 동일 DNA 재현 (디버깅·공유용) |
 | `composeSprite(dna, stage, variant)` | 12×12 hex-color 2D 배열 반환 |
 | `composeEggSprite(dna)` | 알 외형 + palette tint |
 | `spriteForStage(dna, stage, variant)` | stage·variant에 맞는 sprite 한 번에 반환 |
 
 ### 합성 파이프라인
-1. `BODY_SHAPES[bodyShape][stage]` 실루엣을 토큰 배열로 가져옴
-2. `PALETTES[palette]`의 outline/body/dark/cheek 색상으로 토큰 → 실제 hex 색상 치환
+1. `BODY_SHAPES[bodyShape][stage]` 실루엣을 토큰 배열로 가져옴 (`baby` / `grown`은 팔·다리 있는 캐릭터 실루엣)
 3. `EYE_PATCHES[eyes]`를 좌·우 위치에 스탬프 (오른쪽은 자동 미러)
 4. `MOUTH_PATCHES[mouth]` 스탬프
 5. 볼(cheek) 픽셀 도트 찍기 (sick일 때는 생략)
-6. grown 단계라면 `ACCESSORY_PATCHES[accessory]`를 상단에 스탬프
+6. **`baby` 또는 `grown`** 이면 장르 고정 **모자** 스탬프(머리 `accessoryAnchor`): 퍼즐=마법사 모자, 시뮬레이션=셰프 모자, 액션=투구, RPG=광부 헬멧, 슈팅=군모 (`DNA.accessory` 필드는 레거시이며 스프라이트에 쓰이지 않음)
 7. variant 오버라이드: `sick`이면 눈=cross / 입=wavy, `happy`이면 눈=sparkle / 입=smile
 
 ### 결정론 PRNG (`seededRandom.ts`)
