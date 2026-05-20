@@ -59,7 +59,6 @@ export default function TamagotchiScreen() {
     feed,
     clean,
     play,
-    unlock,
     restart,
     rerollFresh,
     recordBattle,
@@ -115,13 +114,6 @@ export default function TamagotchiScreen() {
     opacity: revealOpacity.value,
     transform: [{ scale: revealScale.value }],
   }));
-
-  // Auto-unlock on first visit
-  useEffect(() => {
-    if (isLoaded && !state.isUnlocked) {
-      unlock();
-    }
-  }, [isLoaded, state.isUnlocked, unlock]);
 
   // Cleanup any running battle timer on unmount
   useEffect(() => {
@@ -291,6 +283,42 @@ export default function TamagotchiScreen() {
       <View style={styles.loading}>
         <Text style={styles.loadingText}>로딩중...</Text>
       </View>
+    );
+  }
+
+  if (!state.isUnlocked) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.backBtn}>← 뒤로</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Buddy</Text>
+          <View style={{ width: 64 }} />
+        </View>
+        <View style={styles.lockedWrap}>
+          <Text style={styles.lockedEmoji}>🔒</Text>
+          <Text style={styles.lockedTitle}>아직 열리지 않았어요</Text>
+          <Text style={styles.lockedBody}>
+            커뮤니티의 버디 입문 글에서 힌트를 풀고, 댓글에 암호를 입력하면 입장할 수
+            있어요.
+          </Text>
+          <TouchableOpacity
+            style={styles.lockedBtn}
+            onPress={() => router.push("/post/buddy" as never)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.lockedBtnText}>버디 글로 가기</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.lockedBtnSecondary}
+            onPress={() => router.replace("/" as never)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.lockedBtnSecondaryText}>커뮤니티 피드</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -522,6 +550,50 @@ const styles = StyleSheet.create({
     color: '#1a1a2e',
     fontSize: 17,
     fontWeight: '800',
+  },
+  lockedWrap: {
+    flex: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockedEmoji: { fontSize: 48, marginBottom: 16 },
+  lockedTitle: {
+    color: '#1a1a2e',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  lockedBody: {
+    color: '#5c5c76',
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  lockedBtn: {
+    backgroundColor: '#4488ff',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+    marginBottom: 12,
+    minWidth: 220,
+    alignItems: 'center',
+  },
+  lockedBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  lockedBtnSecondary: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  lockedBtnSecondaryText: {
+    color: '#4488ff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   flipBtn: {
     paddingHorizontal: 10,

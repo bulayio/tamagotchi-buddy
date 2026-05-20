@@ -15,6 +15,27 @@
 | 기간 | 1일 해커톤 |
 | 팀 규모 | 1~2명 |
 
+### 네이티브 앱으로 빌드·설치 (포팅)
+
+이 저장소는 **이미 모바일 앱(Expo / React Native)** 입니다. 웹 전용이 아니라 iOS·Android **설치 패키지**로 가져가려면 아래 중 하나를 쓰면 됩니다.
+
+1. **Expo Go로 바로 테스트 (가장 빠름)**  
+   - `npm run dev` (또는 `npx expo start`) 후 QR 코드로 **Expo Go** 앱에서 연다.  
+   - 별도 빌드 없이 실기기에서 동작 확인 가능.
+
+2. **EAS Build로 APK / IPA 만들기 (배포·시연용)**  
+   - [EAS](https://docs.expo.dev/build/introduction/)에 가입한 뒤 터미널에서:
+     - `npm i -g eas-cli` → `eas login` → 프로젝트 루트에서 `eas init` (최초 1회, `app.json`에 EAS `projectId` 연동)  
+     - 안드로이드 내부 배포용 APK: `eas build --platform android --profile preview`  
+     - iOS는 Apple 개발자 계정·인증서가 필요 (같은 명령에 `--platform ios`).  
+   - `app.json`의 `ios.bundleIdentifier` / `android.package` 는 스토어·실제 출시 전 **본인 도메인에 맞게** 바꾸는 것을 권장합니다 (현재 예시: `com.tamagotchibuddy.app`).
+
+3. **로컬에서 Xcode / Android Studio로 실행 (네이티브 프로젝트 생성)**  
+   - `npx expo prebuild` 로 `ios/`, `android/` 폴더 생성 (저장소 `.gitignore`에 제외되어 있음).  
+   - `npx expo run:ios` 또는 `npx expo run:android` 로 시뮬레이터·에뮬레이터 또는 USB 기기에 설치.
+
+커스텀 네이티브 모듈을 쓸 계획이면 `expo-dev-client` 를 추가하고 `npm run dev:client` 로 개발 서버를 띄우는 흐름을 [Development builds](https://docs.expo.dev/develop/development-builds/introduction/) 문서대로 맞추면 됩니다.
+
 ## 2. 핵심 플로우
 
 ```

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,16 @@ import {
   Image,
   Pressable,
 } from "react-native";
-import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { COMMUNITY_FEED_POSTS } from "../src/constants/communityFeed";
+
+const TAMAGOTCHI_STATE_KEY = "@tamagotchi_state";
 
 const BG = "#FFFFFF";
 const BLUE = "#2F80FF";
@@ -50,6 +53,29 @@ export default function CommunityFeedScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<TabKey>("live");
+  const [showTamagoShortcut, setShowTamagoShortcut] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      AsyncStorage.getItem(TAMAGOTCHI_STATE_KEY).then((raw) => {
+        if (!alive) return;
+        if (!raw) {
+          setShowTamagoShortcut(false);
+          return;
+        }
+        try {
+          const data = JSON.parse(raw) as { isUnlocked?: boolean };
+          setShowTamagoShortcut(data.isUnlocked === true);
+        } catch {
+          setShowTamagoShortcut(false);
+        }
+      });
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
 
   const openPost = (id: string) => {
     router.push(`/post/${id}`);
@@ -78,6 +104,13 @@ export default function CommunityFeedScreen() {
               symbol={"</>"}
               onPress={() => router.push("/dna-demo")}
             />
+            {showTamagoShortcut ? (
+              <HeaderIcon
+                label=""
+                symbol="🐣"
+                onPress={() => router.push("/tamagotchi" as never)}
+              />
+            ) : null}
             <HeaderIcon label="" symbol="🔔" dot />
             <HeaderIcon label="" symbol="💭" />
             <HeaderIcon label="" symbol="🔍" />

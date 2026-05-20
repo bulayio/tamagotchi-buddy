@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { SECRET_COMMAND, HINTS } from "../constants/config";
 import { POST_COMMENTS } from "../constants/communityFeed";
+import { useTamagotchiState } from "../hooks/useTamagotchiState";
 
 const UNLOCK_KEY = "@tamagotchi_state";
 
@@ -53,6 +54,7 @@ const COMMENTS = [
 
 export default function BuddyEntryPostScreen() {
   const router = useRouter();
+  const { unlock } = useTamagotchiState();
   const [input, setInput] = useState("");
   const [hint, setHint] = useState("");
   const [showError, setShowError] = useState(false);
@@ -68,9 +70,11 @@ export default function BuddyEntryPostScreen() {
     setHint(HINTS[Math.floor(Math.random() * HINTS.length)]);
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (input.trim().toUpperCase() === SECRET_COMMAND) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await unlock();
+      setIsUnlocked(true);
       router.push("/tamagotchi?hatch=1");
     } else {
       setShowError(true);
