@@ -40,10 +40,21 @@ export default function StatusIndicators({
           <PixelSprite sprite={SPRITES.food} scale={2} />
         </View>
       )}
-      <View style={styles.poopRow}>
-        {Array.from({ length: poopCount }).map((_, i) => (
-          <PoopItem key={i} index={i} isCleaning={isCleaning} />
-        ))}
+      <View style={styles.poopColLeft}>
+        {Array.from({ length: poopCount })
+          .map((_, i) => i)
+          .filter((i) => i % 2 === 0)
+          .map((i) => (
+            <PoopItem key={i} index={i} isCleaning={isCleaning} />
+          ))}
+      </View>
+      <View style={styles.poopColRight}>
+        {Array.from({ length: poopCount })
+          .map((_, i) => i)
+          .filter((i) => i % 2 === 1)
+          .map((i) => (
+            <PoopItem key={i} index={i} isCleaning={isCleaning} />
+          ))}
       </View>
     </View>
   );
@@ -77,7 +88,7 @@ function PoopItem({ index, isCleaning }: { index: number; isCleaning: boolean })
 
   return (
     <Animated.View style={[styles.poopItem, style]}>
-      <PixelSprite sprite={SPRITES.poop} scale={1.5} />
+      <PixelSprite sprite={SPRITES.poopDrop} scale={1.2} />
     </Animated.View>
   );
 }
@@ -96,11 +107,18 @@ const styles = StyleSheet.create({
     top: 8,
     right: 16,
   },
-  poopRow: {
+  poopColLeft: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    flexDirection: 'row',
+    bottom: 4,
+    left: 2,
+    flexDirection: 'column-reverse',
+    gap: 2,
+  },
+  poopColRight: {
+    position: 'absolute',
+    bottom: 4,
+    right: 2,
+    flexDirection: 'column-reverse',
     gap: 2,
   },
   poopItem: {},

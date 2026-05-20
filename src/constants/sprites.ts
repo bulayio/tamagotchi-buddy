@@ -41,6 +41,14 @@ export const SPRITES: Record<string, Sprite> = {
     [null, null, null, null, null, null, null, null, null, null, null, null],
     [null, null, null, null, null, null, null, null, null, null, null, null],
   ],
+  // Compact drop with no surrounding padding — used by StatusIndicators
+  // so the bounding box hugs the visible shape.
+  poopDrop: [
+    [null, null, BR, null, null],
+    [null, BR, BR, BR, null],
+    [BR, BR, BR, BR, BR],
+    [null, BR, BR, BR, null],
+  ],
   skull: [
     [null, null, C, C, C, C, null, null],
     [null, C, W, W, W, W, C, null],

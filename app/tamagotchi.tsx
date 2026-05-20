@@ -26,6 +26,9 @@ import BattleRecord from '../src/components/BattleRecord';
 import BattleHud from '../src/components/BattleHud';
 import EggHatchOverlay from '../src/components/EggHatchOverlay';
 import DemoPanel from '../src/components/DemoPanel';
+import FlippableDevice from '../src/components/FlippableDevice';
+import DeviceBackFace from '../src/components/DeviceBackFace';
+import ResetConfirmModal from '../src/components/ResetConfirmModal';
 import { BATTLE_CONFIG } from '../src/constants/config';
 import {
   Opponent,
@@ -51,10 +54,15 @@ export default function TamagotchiScreen() {
     play,
     unlock,
     restart,
+    rerollFresh,
     recordBattle,
     isHungry,
     setStageDev,
     addPoopDev,
+    triggerHungryDev,
+    triggerSickDev,
+    triggerDeadDev,
+    healDev,
   } = useTamagotchiState();
 
   // Routine action animations
@@ -62,6 +70,10 @@ export default function TamagotchiScreen() {
   const [isFeeding, setIsFeeding] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [isHatching, setIsHatching] = useState(params.hatch === '1');
+
+  // Device flip + reset modal
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   // Battle state machine
   const [battlePhase, setBattlePhase] = useState<BattlePhase>('idle');
@@ -231,6 +243,32 @@ export default function TamagotchiScreen() {
     setOpponent(null);
   };
 
+  const handleFlip = useCallback(() => {
+    if (battlePhase === 'playing' || battlePhase === 'done') return;
+    setIsFlipped((prev) => !prev);
+  }, [battlePhase]);
+
+  const handleConfirmReset = useCallback(async () => {
+    setShowResetModal(false);
+    // Wipe ALL state (incl. battle record) and roll new DNA
+    await rerollFresh();
+    // Now that the reroll succeeded, flip the device back to the front face
+    setIsFlipped(false);
+    // Cover the device with the hatch overlay during the flip so the back→front
+    // animation isn't visible until the new buddy is revealed.
+    setIsHatching(true);
+    revealOpacity.value = 0;
+    revealScale.value = 0.85;
+    revealOpacity.value = withDelay(
+      1000,
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }),
+    );
+    revealScale.value = withDelay(
+      1000,
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }),
+    );
+  }, [rerollFresh, revealOpacity, revealScale]);
+
   if (!isLoaded) {
     return (
       <View style={styles.loading}>
@@ -251,72 +289,87 @@ export default function TamagotchiScreen() {
           <Text style={styles.backBtn}>← 커뮤니티</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Buddy</Text>
-        <View style={{ width: 80 }} />
+        <TouchableOpacity
+          onPress={handleFlip}
+          style={styles.flipBtn}
+          activeOpacity={0.7}
+          disabled={battleActive}
+        >
+          <Text style={[styles.flipBtnText, battleActive && styles.flipBtnDisabled]}>
+            ↻ 뒤집기
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Animated.View style={[styles.content, revealStyle]}>
-        <TamagotchiFrame
-          controls={
-            !state.isDead ? (
-              <ActionButtons
-                onFeed={handleFeed}
-                onClean={handleClean}
-                onPlay={handlePlay}
-                disabled={
-                  state.isDead || isFeeding || isCleaning || battleActive
-                }
-                tapAction={
-                  battlePhase === 'playing'
-                    ? {
-                        onTap: handleTap,
-                        tapCount: playerTaps,
-                      }
-                    : undefined
-                }
+        <FlippableDevice
+          flipped={isFlipped}
+          front={
+            <TamagotchiFrame
+              controls={
+                !state.isDead ? (
+                  <ActionButtons
+                    onFeed={handleFeed}
+                    onClean={handleClean}
+                    onPlay={handlePlay}
+                    disabled={
+                      state.isDead || isFeeding || isCleaning || battleActive
+                    }
+                    tapAction={
+                      battlePhase === 'playing'
+                        ? {
+                            onTap: handleTap,
+                            tapCount: playerTaps,
+                          }
+                        : undefined
+                    }
+                  />
+                ) : null
+              }
+            >
+              {/* Always-visible battle record at LCD top */}
+              <BattleRecord
+                wins={battleRecord.wins}
+                losses={battleRecord.losses}
+                npcWins={battleRecord.npcWins}
               />
-            ) : null
-          }
-        >
-          {/* Always-visible battle record at LCD top */}
-          <BattleRecord
-            wins={battleRecord.wins}
-            losses={battleRecord.losses}
-            npcWins={battleRecord.npcWins}
-          />
 
-          {battleActive ? (
-            <BattleHud
-              playerDna={state.dna}
-              playerStage={state.stage}
-              opponentDna={opponentDna}
-              opponentName={opponentNameLive}
-              playerScore={computePlayerScore(playerTaps, state.stage, state.isSick)}
-              opponentScore={opponentScore}
-              playerTaps={playerTaps}
-              timeLeftMs={timeLeftMs}
-              result={battleResult}
-            />
-          ) : (
-            <>
-              <PixelCharacter
-                stage={state.stage}
-                isSick={state.isSick}
-                isDead={state.isDead}
-                isPlaying={isPlaying}
-                dna={state.dna}
-              />
-              <StatusIndicators
-                poopCount={state.poopCount}
-                isHungry={isHungry}
-                isSick={state.isSick}
-                isDead={state.isDead}
-                isCleaning={isCleaning}
-              />
-              <FeedingAnimation active={isFeeding} />
-              <PlayHearts active={isPlaying && !isFeeding} />
-            </>
-          )}
-        </TamagotchiFrame>
+              {battleActive ? (
+                <BattleHud
+                  playerDna={state.dna}
+                  playerStage={state.stage}
+                  opponentDna={opponentDna}
+                  opponentName={opponentNameLive}
+                  playerScore={computePlayerScore(playerTaps, state.stage, state.isSick)}
+                  opponentScore={opponentScore}
+                  playerTaps={playerTaps}
+                  timeLeftMs={timeLeftMs}
+                  result={battleResult}
+                />
+              ) : (
+                <>
+                  <PixelCharacter
+                    stage={state.stage}
+                    isSick={state.isSick}
+                    isDead={state.isDead}
+                    isPlaying={isPlaying}
+                    dna={state.dna}
+                  />
+                  <StatusIndicators
+                    poopCount={state.poopCount}
+                    isHungry={isHungry}
+                    isSick={state.isSick}
+                    isDead={state.isDead}
+                    isCleaning={isCleaning}
+                  />
+                  <FeedingAnimation active={isFeeding} />
+                  <PlayHearts active={isPlaying && !isFeeding} />
+                </>
+              )}
+            </TamagotchiFrame>
+          }
+          back={<DeviceBackFace onReset={() => setShowResetModal(true)} />}
+        />
 
         <GrowthStageLabel stage={state.stage} isDead={state.isDead} />
 
@@ -364,14 +417,27 @@ export default function TamagotchiScreen() {
 
         <DemoPanel
           currentStage={state.stage}
+          isHungry={isHungry}
+          isSick={state.isSick}
+          isDead={state.isDead}
           onSetStage={setStageDev}
           onAddPoop={addPoopDev}
+          onTriggerHungry={triggerHungryDev}
+          onTriggerSick={triggerSickDev}
+          onTriggerDead={triggerDeadDev}
+          onHeal={healDev}
         />
       </Animated.View>
 
       {isHatching && (
         <EggHatchOverlay onComplete={() => setIsHatching(false)} />
       )}
+
+      <ResetConfirmModal
+        visible={showResetModal}
+        onCancel={() => setShowResetModal(false)}
+        onConfirm={handleConfirmReset}
+      />
     </SafeAreaView>
   );
 }
@@ -431,6 +497,23 @@ const styles = StyleSheet.create({
     color: '#1a1a2e',
     fontSize: 18,
     fontWeight: '800',
+  },
+  flipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#3b2557',
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  flipBtnText: {
+    color: '#3b2557',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  flipBtnDisabled: {
+    opacity: 0.35,
   },
   content: {
     flex: 1,

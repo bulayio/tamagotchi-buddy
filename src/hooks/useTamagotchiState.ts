@@ -153,6 +153,23 @@ export function useTamagotchiState() {
     await save(newState);
   }, [save]);
 
+  /**
+   * Full reset for the gem-cost reroll flow: wipes battle record and every
+   * other piece of state. The pet is reborn with fresh DNA.
+   */
+  const rerollFresh = useCallback(async () => {
+    const now = Date.now();
+    const newState: TamagotchiData = {
+      ...DEFAULT_STATE,
+      lastFeedTime: now,
+      lastCleanTime: now,
+      createdAt: now,
+      isUnlocked: true,
+      dna: generatePetDNA(),
+    };
+    await save(newState);
+  }, [save]);
+
   // ── Dev / demo helpers ─────────────────────────────────────────────
   const setStageDev = useCallback(
     (stage: Stage) => {
@@ -183,6 +200,39 @@ export function useTamagotchiState() {
     save({ ...stateRef.current, poopCount: next });
   }, [save]);
 
+  const triggerHungryDev = useCallback(() => {
+    // Push lastFeedTime back so isHungry crosses its threshold (50% of
+    // HUNGER_SICK_MS) but doesn't auto-promote to sick yet.
+    const now = Date.now();
+    const lastFeedTime = now - Math.floor(GAME_CONFIG.HUNGER_SICK_MS * 0.7);
+    save({ ...stateRef.current, lastFeedTime });
+  }, [save]);
+
+  const triggerSickDev = useCallback(() => {
+    save({
+      ...stateRef.current,
+      isSick: true,
+      sickSince: Date.now(),
+    });
+  }, [save]);
+
+  const triggerDeadDev = useCallback(() => {
+    save({ ...stateRef.current, isDead: true });
+  }, [save]);
+
+  const healDev = useCallback(() => {
+    const now = Date.now();
+    save({
+      ...stateRef.current,
+      lastFeedTime: now,
+      lastCleanTime: now,
+      isSick: false,
+      sickSince: null,
+      isDead: false,
+      poopCount: 0,
+    });
+  }, [save]);
+
   const recordBattle = useCallback(
     (result: 'win' | 'loss' | 'npcWin') => {
       const record = { ...stateRef.current.battleRecord };
@@ -204,9 +254,14 @@ export function useTamagotchiState() {
     play,
     unlock,
     restart,
+    rerollFresh,
     recordBattle,
     isHungry,
     setStageDev,
     addPoopDev,
+    triggerHungryDev,
+    triggerSickDev,
+    triggerDeadDev,
+    healDev,
   };
 }

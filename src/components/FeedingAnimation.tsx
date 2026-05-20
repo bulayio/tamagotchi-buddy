@@ -53,7 +53,7 @@ export default function FeedingAnimation({ active }: Props) {
 
   return (
     <Animated.View pointerEvents="none" style={[styles.container, style]}>
-      <PixelSprite sprite={SPRITES.food} scale={2.5} />
+      <PixelSprite sprite={SPRITES.cake} scale={1.8} />
     </Animated.View>
   );
 }
